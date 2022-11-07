@@ -1,17 +1,10 @@
 use ariadne::{Label, Report, ReportKind, Source};
 use logos::Lexer;
-use olus::{lexer::Token, parser::SyntaxNode};
+use olus::parser::{parse, SyntaxNode};
 use std::io;
 
 fn main() {
     let source = std::fs::read_to_string("./examples/test.olus").unwrap();
-
-    let mut lexer = Lexer::<Token>::new(&source);
-
-    for (token, span) in lexer.spanned() {
-        println!("{:?}: {:?}", token, &source[span]);
-    }
-    println!();
 
     let node = olus::parser::parse(&source).syntax();
 
