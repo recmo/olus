@@ -1,0 +1,28 @@
+[package]
+name = "olus"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ariadne = "0.1.5"
+logos = "0.12.1"
+miette = { version = "5.4.1", features = ["fancy"] }
+rowan = "0.15.10"
+strum = { version = "0.24.1", features = ["derive"] }
+
+# Compilation profile for any non-workspace member.
+# Dependencies are optimized, even in a dev build. This improves dev performance
+# while having neglible impact on incremental build times.
+[profile.dev.package."*"]
+opt-level = 3
+
+# Produce debug info for release builds
+[profile.release]
+debug = true
+
+[dev-dependencies]
+indoc = "1.0.7"
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--cfg", "has_cfg_doc", "--html-in-header", ".cargo/katex-header.html"]
+all-features = true

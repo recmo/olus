@@ -1,0 +1,11 @@
+import “intrinsics”
+
+printLine s return:
+    print s (:)
+    print “
+” (:)
+    return
+
+askNum question return:
+    print question (:)
+    return (parseInt (input))
