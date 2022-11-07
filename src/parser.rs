@@ -67,41 +67,96 @@ impl Parse {
 }
 
 pub fn parse(text: &str) -> Parse {
-    Parser {
-        lexer:   Lexer::<Token>::new(text).peekable(),
-        builder: GreenNodeBuilder::new(),
-        errors:  Vec::new(),
-    }
-    .parse()
+    let mut parser = Parser::new(text);
+    parser.parse_root();
+    parser.finish()
 }
 
 struct Parser<'source> {
-    lexer:   Peekable<Lexer<'source, Token>>,
+    lexer:   Lexer<'source, Token>,
+    peek:    Option<Token>,
     builder: GreenNodeBuilder<'static>,
     errors:  Vec<String>,
 }
 
-impl Parser<'_> {
-    fn parse(mut self) -> Parse {
-        self.builder.start_node(SyntaxKind::Root.into());
-        while self.bump() {}
-        self.builder.finish_node();
+impl<'source> Parser<'source> {
+    fn new(text: &'source str) -> Self {
+        let mut lexer = Lexer::new(text);
+        let peek = lexer.next();
+        Self {
+            lexer,
+            peek,
+            builder: GreenNodeBuilder::new(),
+            errors: Vec::new(),
+        }
+    }
 
-        // Turn the builder into a GreenNode
+    fn finish(self) -> Parse {
         Parse {
             green_node: self.builder.finish(),
             errors:     self.errors,
         }
     }
 
+    fn parse_root(&mut self) {
+        self.builder.start_node(SyntaxKind::Root.into());
+        while self.peek != None {
+            self.parse_item();
+        }
+        self.builder.finish_node();
+    }
+
+    fn parse_item(&mut self) {
+        match self.peek {
+            Some(Token::ParenOpen) => self.parse_group(),
+            None => {}
+            item => {
+                self.bump();
+            }
+        }
+    }
+
+    fn parse_group(&mut self) {
+        self.builder.start_node(SyntaxKind::Group.into());
+        self.bump();
+        loop {
+            match self.peek {
+                Some(Token::ParenClose) => {
+                    self.bump();
+                    break;
+                }
+                None => {
+                    self.error("unterminated group");
+                    break;
+                }
+                _ => self.parse_item(),
+            }
+        }
+        self.builder.finish_node();
+    }
+
     fn bump(&mut self) -> bool {
-        let Some(token) = self.lexer.next() else {
+        let Some(token) = self.peek else {
             return false;
         };
         self.builder
             .token(SyntaxKind::Token(token).into(), self.lexer.slice());
+        self.peek = self.lexer.next();
         true
     }
 
-    fn peek(&mut self) -> Option<Token> {}
+    fn skip_white_space(&mut self) {
+        while let Some(Token::Whitespace) = self.peek {
+            self.bump();
+        }
+    }
+
+    fn peek(&self) -> Option<Token> {
+        self.peek
+    }
+
+    fn error(&mut self, message: &str) {
+        // TODO: Diagnostics
+        self.errors.push(message.to_string());
+    }
 }
