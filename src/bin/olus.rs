@@ -17,7 +17,7 @@ fn main() {
 
     fn print(depth: usize, node: SyntaxNode, source: &str) {
         println!("{:depth$}{:?}@{:?}", "", node.kind(), node.text_range());
-        let depth = depth + 1;
+        let depth = depth + 4;
         for child in node.children_with_tokens() {
             match child {
                 rowan::NodeOrToken::Node(node) => print(depth, node, source),

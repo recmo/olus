@@ -6,6 +6,8 @@ use strum::{EnumCount, EnumDiscriminants, FromRepr};
 
 // https://github.com/rust-analyzer/rowan/blob/master/examples/s_expressions.rs
 
+const INDENT_SIZE: usize = 4;
+
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, EnumCount, FromRepr, EnumDiscriminants,
 )]
@@ -75,6 +77,7 @@ pub fn parse(text: &str) -> Parse {
 struct Parser<'source> {
     lexer:   Lexer<'source, Token>,
     peek:    Option<Token>,
+    indent:  usize,
     builder: GreenNodeBuilder<'static>,
     errors:  Vec<String>,
 }
@@ -86,6 +89,7 @@ impl<'source> Parser<'source> {
         Self {
             lexer,
             peek,
+            indent: 0,
             builder: GreenNodeBuilder::new(),
             errors: Vec::new(),
         }
@@ -101,62 +105,119 @@ impl<'source> Parser<'source> {
     fn parse_root(&mut self) {
         self.builder.start_node(SyntaxKind::Root.into());
         while self.peek != None {
-            self.parse_item();
+            self.parse_indentation();
+            self.parse_line();
         }
+        self.parse_indentation();
         self.builder.finish_node();
     }
 
-    fn parse_item(&mut self) {
-        match self.peek {
-            Some(Token::ParenOpen) => self.parse_group(),
-            None => {}
-            item => {
-                self.bump();
+    fn parse_indentation(&mut self) {
+        let indent = if self.peek == Some(Token::Whitespace) {
+            let slice = self.lexer.slice();
+            if slice.len() % INDENT_SIZE != 0 || !slice.chars().all(|c| c == ' ') {
+                self.error("Indentation must be a multiple of 4 spaces");
+            }
+            slice.len() / INDENT_SIZE
+        } else {
+            0
+        };
+
+        if indent > self.indent {
+            if indent != self.indent + 1 {
+                self.error("Indentation must increase by 4 spaces at a time");
+            }
+            while indent > self.indent {
+                self.builder.start_node(SyntaxKind::Block.into());
+                self.indent += 1;
+            }
+        }
+        if self.peek == Some(Token::Whitespace) {
+            self.bump();
+        }
+        if indent < self.indent {
+            while indent < self.indent {
+                self.builder.finish_node();
+                self.indent -= 1;
             }
         }
     }
 
-    fn parse_group(&mut self) {
-        self.builder.start_node(SyntaxKind::Group.into());
-        self.bump();
+    fn parse_line(&mut self) {
+        self.builder.start_node(SyntaxKind::Line.into());
         loop {
             match self.peek {
-                Some(Token::ParenClose) => {
+                Some(Token::ParenOpen) => self.parse_group(),
+                Some(
+                    Token::Identifier
+                    | Token::Colon
+                    | Token::String
+                    | Token::Number
+                    | Token::Whitespace,
+                ) => self.bump(),
+                Some(Token::Newline) => {
                     self.bump();
                     break;
                 }
                 None => {
-                    self.error("unterminated group");
                     break;
                 }
-                _ => self.parse_item(),
+                Some(Token::ParenClose) => {
+                    self.error("unexpected closing parenthesis");
+                    self.bump();
+                    break;
+                }
+                Some(Token::Error) => {
+                    self.error("unexpected character");
+                    self.bump();
+                }
             }
         }
         self.builder.finish_node();
     }
 
-    fn bump(&mut self) -> bool {
+    fn parse_group(&mut self) {
+        self.builder.start_node(SyntaxKind::Group.into());
+        self.bump(); // ParenOpen
+        loop {
+            match self.peek {
+                Some(Token::ParenOpen) => self.parse_group(),
+                Some(Token::ParenClose) => {
+                    self.bump();
+                    break;
+                }
+                Some(
+                    Token::Identifier
+                    | Token::Colon
+                    | Token::String
+                    | Token::Number
+                    | Token::Whitespace,
+                ) => self.bump(),
+                Some(Token::Error) => {
+                    self.error("unexpected character");
+                    self.bump();
+                }
+                Some(Token::Newline) | None => {
+                    self.error("unterminated parenthesized group");
+                    break;
+                }
+            }
+        }
+        self.builder.finish_node();
+    }
+
+    fn bump(&mut self) {
         let Some(token) = self.peek else {
-            return false;
+            panic!();
         };
         self.builder
             .token(SyntaxKind::Token(token).into(), self.lexer.slice());
         self.peek = self.lexer.next();
-        true
-    }
-
-    fn skip_white_space(&mut self) {
-        while let Some(Token::Whitespace) = self.peek {
-            self.bump();
-        }
-    }
-
-    fn peek(&self) -> Option<Token> {
-        self.peek
     }
 
     fn error(&mut self, message: &str) {
         // TODO: Diagnostics
+        println!("error: {}", message);
         self.errors.push(message.to_string());
     }
 }
