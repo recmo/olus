@@ -74,23 +74,79 @@ impl<'source> Parser<'source> {
     }
 
     fn parse_line(&mut self) {
-        self.builder.start_node(SyntaxKind::Line.into());
+        let checkpoint = self.builder.checkpoint();
+
+        let is_proc = self.try_bump_params();
+        if !is_proc {
+            self.builder
+                .start_node_at(checkpoint, SyntaxKind::Call.into());
+            self.bump_arguments();
+            self.builder.finish_node();
+            return;
+        }
+
+        self.builder
+            .start_node_at(checkpoint, SyntaxKind::Def.into());
+
+        self.builder
+            .start_node_at(checkpoint, SyntaxKind::Proc.into());
+        self.builder.finish_node();
+        assert_eq!(self.peek, Some(Token::Colon));
+        self.bump();
+
+        // Parse arguments (if any)
+        let checkpoint = self.builder.checkpoint();
+        let count = self.bump_arguments();
+        if count > 0 {
+            self.builder
+                .start_node_at(checkpoint, SyntaxKind::Call.into());
+            self.builder.finish_node();
+        }
+        self.builder.finish_node();
+    }
+
+    fn try_bump_params(&mut self) -> bool {
         loop {
             match self.peek {
-                Some(Token::ParenOpen) => self.parse_group(),
-                Some(
-                    Token::Identifier
-                    | Token::Colon
-                    | Token::String
-                    | Token::Number
-                    | Token::Whitespace,
-                ) => self.bump(),
+                Some(Token::Identifier | Token::Whitespace) => self.bump(),
+                Some(Token::Colon) => return true,
+                Some(Token::Newline | Token::String | Token::Number | Token::ParenOpen) | None => {
+                    return false
+                }
+                Some(Token::ParenClose) => {
+                    self.error("unexpected closing parenthesis");
+                    self.bump();
+                }
+                Some(Token::Error) => {
+                    self.error("unexpected character");
+                    self.bump();
+                }
+            }
+        }
+    }
+
+    fn bump_arguments(&mut self) -> usize {
+        let mut count = 0;
+        loop {
+            match self.peek {
+                Some(Token::ParenOpen) => {
+                    count += 1;
+                    self.parse_group();
+                }
+                Some(Token::Identifier | Token::String | Token::Number | Token::Whitespace) => {
+                    count += 1;
+                    self.bump()
+                }
                 Some(Token::Newline) => {
                     self.bump();
                     break;
                 }
                 None => {
                     break;
+                }
+                Some(Token::Colon) => {
+                    self.error("Definition cannot contain more than one colon");
+                    self.bump();
                 }
                 Some(Token::ParenClose) => {
                     self.error("unexpected closing parenthesis");
@@ -103,12 +159,13 @@ impl<'source> Parser<'source> {
                 }
             }
         }
-        self.builder.finish_node();
+        count
     }
 
     fn parse_group(&mut self) {
-        self.builder.start_node(SyntaxKind::Group.into());
+        let checkpoint = self.builder.checkpoint();
         self.bump(); // ParenOpen
+        let mut saw_colon = false;
         loop {
             match self.peek {
                 Some(Token::ParenOpen) => self.parse_group(),
@@ -116,13 +173,16 @@ impl<'source> Parser<'source> {
                     self.bump();
                     break;
                 }
-                Some(
-                    Token::Identifier
-                    | Token::Colon
-                    | Token::String
-                    | Token::Number
-                    | Token::Whitespace,
-                ) => self.bump(),
+                Some(Token::Colon) => {
+                    if saw_colon {
+                        self.error("unexpected additional colon");
+                    }
+                    saw_colon = true;
+                    self.bump();
+                }
+                Some(Token::Identifier | Token::String | Token::Number | Token::Whitespace) => {
+                    self.bump()
+                }
                 Some(Token::Error) => {
                     self.error("unexpected character");
                     self.bump();
@@ -133,6 +193,12 @@ impl<'source> Parser<'source> {
                 }
             }
         }
+        let kind = if saw_colon {
+            SyntaxKind::IDef
+        } else {
+            SyntaxKind::ICall
+        };
+        self.builder.start_node_at(checkpoint, kind.into());
         self.builder.finish_node();
     }
 

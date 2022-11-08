@@ -1,11 +1,11 @@
-import “intrinsics”
+a_call “intrinsics”
 
-printLine s return:
-    print s (:)
-    print “
-” (:)
-    return
+a_def par0 par1: a_call arg0 arg1
 
-askNum question return:
-    print question (:)
-    return (parseInt (input))
+b_call arg0 arg1
+    with_block_def par0 par1: b_call arg0 arg1
+
+fib n return:
+    if (isZero n) (:return 0) (:sub n 1 (m:))
+    if (isZero m) (:return 1) (:sub m 1 (k:))
+    return (add (fib m) (fib k))

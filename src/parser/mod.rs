@@ -1,5 +1,6 @@
 // https://github.com/rust-analyzer/rowan/blob/master/examples/s_expressions.rs
 
+mod name_resolution;
 mod parser;
 mod syntax;
 mod syntax_kind;
@@ -10,9 +11,9 @@ use self::{
     syntax_kind::{Language, SyntaxKind},
     token::Token,
 };
-use rowan::GreenNode;
+use rowan::{ast::AstNode, GreenNode};
 
-pub use syntax::SyntaxNode;
+pub use syntax::{Root, SyntaxNode};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Parse {
@@ -21,8 +22,8 @@ pub struct Parse {
 }
 
 impl Parse {
-    pub fn syntax(&self) -> SyntaxNode {
-        SyntaxNode::new_root(self.green_node.clone())
+    pub fn root(&self) -> Root {
+        Root::cast(SyntaxNode::new_root(self.green_node.clone())).unwrap()
     }
 }
 

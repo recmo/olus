@@ -1,19 +1,19 @@
 use ariadne::{Label, Report, ReportKind, Source};
-use logos::Lexer;
 use olus::parser::{parse, SyntaxNode};
-use std::io;
+use rowan::ast::AstNode;
+use std::fs::read_to_string;
 
 fn main() {
-    let source = std::fs::read_to_string("./examples/test.olus").unwrap();
+    let source = read_to_string("./examples/test.olus").unwrap();
 
-    let node = olus::parser::parse(&source).syntax();
+    let root = parse(&source).root();
 
-    fn print(depth: usize, node: SyntaxNode, source: &str) {
+    fn print(depth: usize, node: &SyntaxNode, source: &str) {
         println!("{:depth$}{:?}@{:?}", "", node.kind(), node.text_range());
         let depth = depth + 4;
         for child in node.children_with_tokens() {
             match child {
-                rowan::NodeOrToken::Node(node) => print(depth, node, source),
+                rowan::NodeOrToken::Node(node) => print(depth, &node, source),
                 rowan::NodeOrToken::Token(token) => {
                     let start = usize::from(token.text_range().start());
                     let end = usize::from(token.text_range().end());
@@ -30,5 +30,5 @@ fn main() {
             }
         }
     }
-    print(0, node, &source);
+    print(0, root.syntax(), &source);
 }
