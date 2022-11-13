@@ -2,9 +2,10 @@
 
 mod name_resolution;
 mod parser;
-mod syntax;
+pub mod syntax;
 mod syntax_kind;
 mod token;
+mod unparser;
 
 use self::{
     parser::Parser,
@@ -13,7 +14,10 @@ use self::{
 };
 use rowan::{ast::AstNode, GreenNode};
 
-pub use syntax::{Root, SyntaxNode};
+pub use self::{
+    syntax::{Root, SyntaxNode},
+    unparser::unparse,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Parse {
@@ -31,4 +35,26 @@ pub fn parse(text: &str) -> Parse {
     let mut parser = Parser::new(text);
     parser.parse_root();
     parser.finish()
+}
+
+pub fn print(node: &SyntaxNode) {
+    fn print(depth: usize, node: &SyntaxNode) {
+        println!("{:depth$}{:?}@{:?}", "", node.kind(), node.text_range());
+        let depth = depth + 4;
+        for child in node.children_with_tokens() {
+            match child {
+                rowan::NodeOrToken::Node(node) => print(depth, &node),
+                rowan::NodeOrToken::Token(token) => {
+                    println!(
+                        "{:depth$}{:?}@{:?}: {:?}",
+                        "",
+                        token.kind(),
+                        token.text_range(),
+                        token.text()
+                    )
+                }
+            }
+        }
+    }
+    print(0, node);
 }

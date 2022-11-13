@@ -12,10 +12,9 @@ pub enum SyntaxKind {
     Root,  // The root of the syntax tree
     Def,   // A line defining a procedure
     Proc,  // A line declaring a procedure
-    Call,  // A line specifying a call
+    Call,  // A line or group specifying a call
     Block, // Indented block of code
-    IDef,  // Inline parenthesized definition
-    ICall, // Inline parenthesized call
+    Group, // A parenthesized group
 }
 
 impl From<SyntaxKind> for rowan::SyntaxKind {
@@ -65,7 +64,7 @@ mod tests {
         assert_eq!(SK::from(SyntaxKind::Token(Token::Whitespace)), SK(0));
         assert_eq!(SK::from(SyntaxKind::Token(Token::Error)), SK(8));
         assert_eq!(SK::from(SyntaxKind::Root), SK(10));
-        assert_eq!(SK::from(SyntaxKind::ICall), SK(13));
+        assert_eq!(SK::from(SyntaxKind::Group), SK(13));
     }
 
     #[test]
@@ -79,7 +78,7 @@ mod tests {
             SyntaxKind::Token(Token::Error)
         );
         assert_eq!(Language::kind_from_raw(SK(10)), SyntaxKind::Root);
-        assert_eq!(Language::kind_from_raw(SK(13)), SyntaxKind::ICall);
+        assert_eq!(Language::kind_from_raw(SK(13)), SyntaxKind::Group);
     }
 
     #[test]

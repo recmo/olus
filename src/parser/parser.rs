@@ -36,7 +36,7 @@ impl<'source> Parser<'source> {
         self.builder.start_node(SyntaxKind::Root.into());
         while self.peek.is_some() {
             self.parse_indentation();
-            self.parse_line();
+            self.parse_def(false);
         }
         self.parse_indentation();
         self.builder.finish_node();
@@ -73,14 +73,14 @@ impl<'source> Parser<'source> {
         }
     }
 
-    fn parse_line(&mut self) {
+    fn parse_def(&mut self, in_group: bool) {
         let checkpoint = self.builder.checkpoint();
 
-        let is_proc = self.try_bump_params();
+        let is_proc = self.try_bump_params(in_group);
         if !is_proc {
             self.builder
                 .start_node_at(checkpoint, SyntaxKind::Call.into());
-            self.bump_arguments();
+            self.bump_arguments(in_group);
             self.builder.finish_node();
             return;
         }
@@ -96,7 +96,7 @@ impl<'source> Parser<'source> {
 
         // Parse arguments (if any)
         let checkpoint = self.builder.checkpoint();
-        let count = self.bump_arguments();
+        let count = self.bump_arguments(in_group);
         if count > 0 {
             self.builder
                 .start_node_at(checkpoint, SyntaxKind::Call.into());
@@ -105,13 +105,21 @@ impl<'source> Parser<'source> {
         self.builder.finish_node();
     }
 
-    fn try_bump_params(&mut self) -> bool {
+    fn try_bump_params(&mut self, in_group: bool) -> bool {
         loop {
             match self.peek {
                 Some(Token::Identifier | Token::Whitespace) => self.bump(),
                 Some(Token::Colon) => return true,
-                Some(Token::Newline | Token::String | Token::Number | Token::ParenOpen) | None => {
-                    return false
+                Some(Token::String | Token::Number | Token::ParenOpen) => return false,
+                Some(Token::Newline) | None if !in_group => {
+                    return false;
+                }
+                Some(Token::ParenClose) if in_group => {
+                    return false;
+                }
+                Some(Token::Newline) | None => {
+                    self.error("unexpected newline");
+                    return false;
                 }
                 Some(Token::ParenClose) => {
                     self.error("unexpected closing parenthesis");
@@ -125,7 +133,7 @@ impl<'source> Parser<'source> {
         }
     }
 
-    fn bump_arguments(&mut self) -> usize {
+    fn bump_arguments(&mut self, in_group: bool) -> usize {
         let mut count = 0;
         loop {
             match self.peek {
@@ -137,11 +145,15 @@ impl<'source> Parser<'source> {
                     count += 1;
                     self.bump()
                 }
-                Some(Token::Newline) => {
+                Some(Token::Newline) | None if !in_group => {
                     self.bump();
                     break;
                 }
-                None => {
+                Some(Token::ParenClose) if in_group => {
+                    break;
+                }
+                Some(Token::Newline) | None => {
+                    self.error("unexpected end of line");
                     break;
                 }
                 Some(Token::Colon) => {
@@ -149,8 +161,10 @@ impl<'source> Parser<'source> {
                     self.bump();
                 }
                 Some(Token::ParenClose) => {
-                    self.error("unexpected closing parenthesis");
-                    self.bump();
+                    if !in_group {
+                        self.error("unexpected closing parenthesis");
+                        self.bump();
+                    }
                     break;
                 }
                 Some(Token::Error) => {
@@ -163,42 +177,14 @@ impl<'source> Parser<'source> {
     }
 
     fn parse_group(&mut self) {
-        let checkpoint = self.builder.checkpoint();
-        self.bump(); // ParenOpen
-        let mut saw_colon = false;
-        loop {
-            match self.peek {
-                Some(Token::ParenOpen) => self.parse_group(),
-                Some(Token::ParenClose) => {
-                    self.bump();
-                    break;
-                }
-                Some(Token::Colon) => {
-                    if saw_colon {
-                        self.error("unexpected additional colon");
-                    }
-                    saw_colon = true;
-                    self.bump();
-                }
-                Some(Token::Identifier | Token::String | Token::Number | Token::Whitespace) => {
-                    self.bump()
-                }
-                Some(Token::Error) => {
-                    self.error("unexpected character");
-                    self.bump();
-                }
-                Some(Token::Newline) | None => {
-                    self.error("unterminated parenthesized group");
-                    break;
-                }
-            }
-        }
-        let kind = if saw_colon {
-            SyntaxKind::IDef
-        } else {
-            SyntaxKind::ICall
-        };
-        self.builder.start_node_at(checkpoint, kind.into());
+        self.builder.start_node(SyntaxKind::Group.into());
+        assert_eq!(self.peek, Some(Token::ParenOpen));
+        self.bump();
+
+        self.parse_def(true);
+
+        assert_eq!(self.peek, Some(Token::ParenClose));
+        self.bump();
         self.builder.finish_node();
     }
 

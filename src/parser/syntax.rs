@@ -66,28 +66,146 @@ ast_node!(Def, Def);
 ast_node!(Proc, Proc);
 ast_node!(Call, Call);
 ast_node!(Block, Block);
-ast_node!(IDef, IDef);
-ast_node!(ICall, ICall);
+ast_node!(Group, Group);
 ast_token!(Identifier, Identifier);
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Line {
+    Def(Def),
+    Call(Call),
+}
+
+impl AstNode for Line {
+    type Language = Language;
+
+    fn can_cast(kind: SyntaxKind) -> bool {
+        Def::can_cast(kind) || Call::can_cast(kind)
+    }
+
+    fn cast(node: SyntaxNode) -> Option<Self> {
+        match node.kind() {
+            SyntaxKind::Def => Def::cast(node).map(Line::Def),
+            SyntaxKind::Call => Call::cast(node).map(Line::Call),
+            _ => None,
+        }
+    }
+
+    fn syntax(&self) -> &SyntaxNode {
+        match self {
+            Self::Def(def) => def.syntax(),
+            Self::Call(call) => call.syntax(),
+        }
+    }
+}
+
+impl Line {
+    pub fn def(&self) -> Option<&Def> {
+        match self {
+            Self::Def(def) => Some(def),
+            _ => None,
+        }
+    }
+
+    pub fn call(&self) -> Option<&Call> {
+        match self {
+            Self::Call(call) => Some(call),
+            _ => None,
+        }
+    }
+
+    pub fn block(&self) -> Option<Block> {
+        match self {
+            Self::Def(def) => def.block(),
+            Self::Call(call) => call.block(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Argument {
+    Identifier(Identifier),
+    Group(Group),
+}
+
+impl Argument {
+    fn can_cast(kind: SyntaxKind) -> bool {
+        Identifier::can_cast(kind) || Group::can_cast(kind)
+    }
+
+    fn cast(node: SyntaxElement) -> Option<Self> {
+        match node {
+            SyntaxElement::Node(node) => match node.kind() {
+                _ => None,
+            },
+            SyntaxElement::Token(token) => Identifier::cast(token).map(Self::Identifier),
+        }
+    }
+}
+
 impl Root {
-    pub fn defs(&self) -> impl Iterator<Item = Def> {
-        self.syntax().children().filter_map(Def::cast)
+    pub fn lines(&self) -> impl Iterator<Item = Line> {
+        self.syntax().children().filter_map(Line::cast)
     }
 }
 
 impl Block {
-    pub fn def(&self) -> Def {
-        self.syntax().prev_sibling().and_then(Def::cast).unwrap()
+    pub fn line(&self) -> Line {
+        self.syntax().prev_sibling().and_then(Line::cast).unwrap()
     }
 
-    pub fn defs(&self) -> impl Iterator<Item = Def> {
-        self.syntax().children().filter_map(Def::cast)
+    pub fn lines(&self) -> impl Iterator<Item = Line> {
+        self.syntax().children().filter_map(Line::cast)
     }
 }
 
 impl Def {
     pub fn block(&self) -> Option<Block> {
         self.0.next_sibling().and_then(Block::cast)
+    }
+
+    pub fn proc(&self) -> Proc {
+        self.syntax()
+            .children()
+            .filter_map(Proc::cast)
+            .next()
+            .unwrap()
+    }
+
+    pub fn call(&self) -> Option<Call> {
+        self.syntax().children().filter_map(Call::cast).next()
+    }
+}
+
+impl Proc {
+    pub fn identifiers(&self) -> impl Iterator<Item = Identifier> {
+        self.syntax()
+            .children_with_tokens()
+            .filter_map(SyntaxElement::into_token)
+            .filter_map(Identifier::cast)
+    }
+
+    pub fn name(&self) -> Identifier {
+        self.identifiers().next().unwrap()
+    }
+
+    pub fn parameters(&self) -> impl Iterator<Item = Identifier> {
+        self.identifiers().skip(1)
+    }
+}
+
+impl Call {
+    pub fn block(&self) -> Option<Block> {
+        self.0.next_sibling().and_then(Block::cast)
+    }
+
+    pub fn arguments(&self) -> impl Iterator<Item = Argument> {
+        self.syntax()
+            .children_with_tokens()
+            .filter_map(|node| match node.kind() {
+                SyntaxKind::Token(Token::Identifier) => Some(Argument::Identifier(
+                    Identifier::cast(node.into_token().unwrap()).unwrap(),
+                )),
+                _ => None,
+            })
     }
 }

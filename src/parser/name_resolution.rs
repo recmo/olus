@@ -2,15 +2,13 @@ use super::SyntaxNode;
 use std::collections::HashMap;
 
 pub struct Resolution {
-    map:  HashMap<usize, usize>,
-    root: SyntaxNode,
+    map: HashMap<usize, usize>,
 }
 
 impl Resolution {
     fn new(root: SyntaxNode) -> Resolution {
         Resolution {
             map: HashMap::new(),
-            root,
         }
     }
 
