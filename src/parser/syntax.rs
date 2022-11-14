@@ -1,5 +1,5 @@
 use super::{syntax_kind::SyntaxKind, token::Token, Language};
-use rowan::ast::AstNode;
+use rowan::{ast::AstNode, NodeOrToken};
 
 pub type SyntaxNode = rowan::SyntaxNode<Language>;
 pub type SyntaxToken = rowan::SyntaxToken<Language>;
@@ -68,6 +68,8 @@ ast_node!(Call, Call);
 ast_node!(Block, Block);
 ast_node!(Group, Group);
 ast_token!(Identifier, Identifier);
+ast_token!(String, String);
+ast_token!(Number, Number);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Line {
@@ -124,6 +126,8 @@ impl Line {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Argument {
     Identifier(Identifier),
+    String(String),
+    Number(Number),
     Group(Group),
 }
 
@@ -134,10 +138,8 @@ impl Argument {
 
     fn cast(node: SyntaxElement) -> Option<Self> {
         match node {
-            SyntaxElement::Node(node) => match node.kind() {
-                _ => None,
-            },
             SyntaxElement::Token(token) => Identifier::cast(token).map(Self::Identifier),
+            SyntaxElement::Node(node) => Group::cast(node).map(Self::Group),
         }
     }
 }
@@ -177,6 +179,10 @@ impl Def {
 }
 
 impl Proc {
+    pub fn group(&self) -> Option<Group> {
+        self.syntax().parent().and_then(Group::cast)
+    }
+
     pub fn identifiers(&self) -> impl Iterator<Item = Identifier> {
         self.syntax()
             .children_with_tokens()
@@ -184,12 +190,17 @@ impl Proc {
             .filter_map(Identifier::cast)
     }
 
-    pub fn name(&self) -> Identifier {
-        self.identifiers().next().unwrap()
+    pub fn name(&self) -> Option<Identifier> {
+        if self.group().is_some() {
+            None
+        } else {
+            self.identifiers().next()
+        }
     }
 
     pub fn parameters(&self) -> impl Iterator<Item = Identifier> {
-        self.identifiers().skip(1)
+        self.identifiers()
+            .skip(if self.group().is_some() { 0 } else { 1 })
     }
 }
 
@@ -201,11 +212,40 @@ impl Call {
     pub fn arguments(&self) -> impl Iterator<Item = Argument> {
         self.syntax()
             .children_with_tokens()
-            .filter_map(|node| match node.kind() {
-                SyntaxKind::Token(Token::Identifier) => Some(Argument::Identifier(
-                    Identifier::cast(node.into_token().unwrap()).unwrap(),
-                )),
-                _ => None,
+            .filter_map(|node| match node {
+                NodeOrToken::Node(node) => Group::cast(node).map(Argument::Group),
+                NodeOrToken::Token(token) => match token.kind() {
+                    SyntaxKind::Token(Token::Identifier) => {
+                        Identifier::cast(token).map(Argument::Identifier)
+                    }
+                    SyntaxKind::Token(Token::String) => String::cast(token).map(Argument::String),
+                    SyntaxKind::Token(Token::Number) => Number::cast(token).map(Argument::Number),
+                    _ => None,
+                },
             })
+    }
+}
+
+impl Group {
+    pub fn arguments(&self) -> impl Iterator<Item = Argument> {
+        self.syntax()
+            .children_with_tokens()
+            .filter_map(Argument::cast)
+    }
+
+    pub fn def(&self) -> Option<Def> {
+        self.syntax().children().next().and_then(Def::cast)
+    }
+
+    pub fn call(&self) -> Option<Call> {
+        self.syntax().children().next().and_then(Call::cast)
+    }
+}
+
+impl String {
+    pub fn value(&self) -> &str {
+        let raw = self.syntax().text();
+        // Trim enclosing quotes
+        &raw['“'.len_utf8()..raw.len() - '”'.len_utf8()]
     }
 }

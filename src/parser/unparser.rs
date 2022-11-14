@@ -48,9 +48,10 @@ impl<W: Write> Unparser<W> {
     }
 
     fn unparse_proc(&mut self, proc: Proc) -> Result<(), Error> {
-        self.unparse_identifier(proc.name())?;
-        for parameter in proc.parameters() {
-            write!(self.writer, " ")?;
+        for (i, parameter) in proc.identifiers().enumerate() {
+            if i > 0 {
+                write!(self.writer, " ")?;
+            }
             self.unparse_identifier(parameter)?;
         }
         write!(self.writer, ":")?;
@@ -81,11 +82,18 @@ impl<W: Write> Unparser<W> {
     fn unparse_argument(&mut self, argument: Argument) -> Result<(), Error> {
         match argument {
             Argument::Identifier(identifier) => self.unparse_identifier(identifier)?,
-            Argument::Group(call) => {
+            Argument::Group(group) => {
                 write!(self.writer, "(")?;
-                // ...
+                if let Some(def) = group.def() {
+                    self.unparse_def(def)?;
+                }
+                if let Some(call) = group.call() {
+                    self.unparse_call(call)?;
+                }
                 write!(self.writer, ")")?;
             }
+            Argument::String(string) => write!(self.writer, "“{}”", string.value())?,
+            Argument::Number(number) => write!(self.writer, "{}", number.text())?,
         }
         Ok(())
     }
