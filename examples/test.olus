@@ -6,6 +6,13 @@ is_even n then else:
 is_odd n then else:
     if (is_zero n) else (: is_even (sub n 1) then else)
 
+scoped name resolution:
+    is_even n then else:
+        if (is_zero n) then (: is_odd (sub n 1) then else)
+
+    is_odd n then else:
+        if (is_zero n) else (: is_even (sub n 1) then else)
+
 fact n return:
     if (is_zero n) base recurse
     base: return 1

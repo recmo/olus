@@ -1,22 +1,9 @@
-use super::syntax::{Argument, Block, Call, Def, Group, Identifier, Line, Proc, Root};
-use owo_colors::{DynColors, OwoColorize};
-use rowan::ast::AstNode;
-use std::{
-    collections::{hash_map::DefaultHasher, HashMap},
-    hash::{Hash, Hasher},
-};
+/// TODO: Backwards pass.
+use super::syntax::{Argument, Call, Def, Group, Identifier, Line, Root};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Resolution(HashMap<Identifier, Identifier>);
-
-pub fn resolve(root: Root) -> Resolution {
-    let mut resolver = Resolver {
-        map:        vec![HashMap::new()],
-        resolution: HashMap::new(),
-    };
-    resolver.visit_root(root);
-    Resolution(resolver.resolution)
-}
 
 impl Resolution {
     pub fn resolve(&self, identifier: &Identifier) -> Option<&Identifier> {
@@ -24,8 +11,20 @@ impl Resolution {
     }
 }
 
+pub fn resolve(root: Root) -> Resolution {
+    let mut resolver = Resolver {
+        map: vec![HashMap::new()],
+        unbound: vec![HashMap::new()],
+        ..Default::default()
+    };
+    resolver.visit_root(root);
+    Resolution(resolver.resolution)
+}
+
+#[derive(Debug, Default)]
 struct Resolver {
     map:        Vec<HashMap<String, Identifier>>,
+    unbound:    Vec<HashMap<String, Vec<Identifier>>>,
     resolution: HashMap<Identifier, Identifier>,
 }
 
@@ -51,7 +50,7 @@ impl Resolver {
         // If it has a block, everything else goes into the block's scope.
         // If not, everything goes in the current scope.
         if def.block().is_some() {
-            self.map.push(HashMap::new());
+            self.push_scope();
         }
         for parameter in def.proc().parameters() {
             self.visit_bind(parameter);
@@ -63,13 +62,13 @@ impl Resolver {
             for line in block.lines() {
                 self.visit_line(line);
             }
-            self.map.pop();
+            self.pop_scope();
         }
     }
 
     fn visit_call(&mut self, call: Call) {
         if call.block().is_some() {
-            self.map.push(HashMap::new());
+            self.push_scope();
         }
         for argument in call.arguments() {
             self.visit_argument(argument);
@@ -78,7 +77,7 @@ impl Resolver {
             for line in block.lines() {
                 self.visit_line(line);
             }
-            self.map.pop();
+            self.pop_scope();
         }
     }
 
@@ -104,18 +103,54 @@ impl Resolver {
             .last_mut()
             .unwrap()
             .insert(identifier.text().to_owned(), identifier.clone());
-        self.resolution.insert(identifier.clone(), identifier);
+        self.resolution
+            .insert(identifier.clone(), identifier.clone());
+
+        // Resolve any unbound references to this identifier.
+        if let Some(unbound) = self.unbound.last_mut().unwrap().get_mut(identifier.text()) {
+            for reference in unbound.drain(..) {
+                self.resolution.insert(reference, identifier.clone());
+            }
+        }
     }
 
     fn visit_reference(&mut self, identifier: Identifier) {
-        let bind = self
-            .map
-            .iter()
-            .rev()
-            .filter_map(|scope| scope.get(identifier.text()))
-            .next();
+        let bind = self.map.last().unwrap().get(identifier.text());
         if let Some(bind) = bind {
             self.resolution.insert(identifier, bind.clone());
+        } else {
+            self.push_unbound(identifier);
+        }
+    }
+
+    fn push_unbound(&mut self, identifier: Identifier) {
+        let map = self.unbound.last_mut().unwrap();
+        let vec = map.entry(identifier.text().to_owned()).or_default();
+        vec.push(identifier);
+    }
+
+    fn push_scope(&mut self) {
+        self.map.push(HashMap::new());
+        self.unbound.push(HashMap::new());
+    }
+
+    fn pop_scope(&mut self) {
+        self.map.pop();
+        let current_bind = self.map.last().unwrap();
+
+        // Move all unbound identifiers from the popped scope to the current scope.
+        let popped = self.unbound.pop().unwrap();
+        let current = self.unbound.last_mut().unwrap();
+        for (text, identifiers) in popped {
+            // Check if they are bound in the current scope.
+            if let Some(bind) = current_bind.get(&text) {
+                for reference in identifiers {
+                    self.resolution.insert(reference, bind.clone());
+                }
+            } else {
+                let vec = current.entry(text).or_default();
+                vec.extend(identifiers);
+            }
         }
     }
 }
