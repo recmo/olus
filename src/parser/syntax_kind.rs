@@ -11,8 +11,8 @@ pub enum SyntaxKind {
     // Composite nodes
     Root,  // The root of the syntax tree
     Def,   // A line defining a procedure
-    Proc,  // A line declaring a procedure
-    Call,  // A line or group specifying a call
+    Proc,  // A fragment declaring a procedure
+    Call,  // A fragment specifying a call
     Block, // Indented block of code
     Group, // A parenthesized group
 }

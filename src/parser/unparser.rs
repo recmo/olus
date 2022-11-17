@@ -1,20 +1,49 @@
-use super::syntax::{Argument, Block, Call, Def, Identifier, Line, Proc, Root};
+use owo_colors::{DynColors, OwoColorize};
+
+use super::{
+    syntax::{Argument, Block, Call, Def, Identifier, Line, Proc, Root},
+    Resolution,
+};
 use std::io::{Error, Write};
 
-pub fn unparse<W: Write>(writer: &mut W, node: Root) -> Result<(), Error> {
-    Unparser::new(writer).unparse_root(node)
+pub fn unparse<W: Write>(
+    writer: &mut W,
+    node: Root,
+    resolution: Option<Resolution>,
+) -> Result<(), Error> {
+    let mut unparser = Unparser {
+        writer,
+        resolution,
+        indent: 0,
+    };
+    unparser.unparse_root(node)
+}
+
+// Deterministic pseudo-random color for identifier
+fn color(identifier: &Identifier) -> DynColors {
+    use std::{
+        collections::hash_map::DefaultHasher,
+        hash::{Hash, Hasher},
+    };
+
+    let grad = colorgrad::rainbow();
+    let hash = {
+        let mut hasher = DefaultHasher::new();
+        identifier.text().hash(&mut hasher);
+        identifier.syntax().text_range().hash(&mut hasher);
+        hasher.finish() as f64 / std::u64::MAX as f64
+    };
+    let color = grad.at(hash).to_rgba8();
+    DynColors::Rgb(color[0], color[1], color[2])
 }
 
 struct Unparser<W: Write> {
-    writer: W,
-    indent: usize,
+    writer:     W,
+    resolution: Option<Resolution>,
+    indent:     usize,
 }
 
 impl<W: Write> Unparser<W> {
-    fn new(writer: W) -> Self {
-        Self { writer, indent: 0 }
-    }
-
     fn unparse_root(&mut self, root: Root) -> Result<(), Error> {
         for line in root.lines() {
             self.unparse_line(line)?;
@@ -76,7 +105,20 @@ impl<W: Write> Unparser<W> {
     }
 
     fn unparse_identifier(&mut self, identifier: Identifier) -> Result<(), Error> {
-        write!(self.writer, "{}", identifier.text())
+        let reference = self
+            .resolution
+            .as_ref()
+            .and_then(|resolution| resolution.resolve(&identifier));
+        let color = reference.map(color).unwrap_or(DynColors::Rgb(0, 0, 0));
+        let unbound = reference.is_none();
+        let binds = Some(&identifier) == reference;
+        if unbound {
+            write!(self.writer, "{}", identifier.text().on_bright_red())
+        } else if binds {
+            write!(self.writer, "{}", identifier.text().color(color).bold())
+        } else {
+            write!(self.writer, "{}", identifier.text().color(color))
+        }
     }
 
     fn unparse_argument(&mut self, argument: Argument) -> Result<(), Error> {

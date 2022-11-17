@@ -1,11 +1,18 @@
-a_call “intrinsics”
+use if is_zero add mul sub:
 
-a_def par0 par1: a_call arg0 arg1
+is_even n then else:
+    if (is_zero n) then (: is_odd (sub n 1) then else)
 
-b_call arg0 arg1
-    with_block_def par0 par1: b_call arg0 arg1
+is_odd n then else:
+    if (is_zero n) else (: is_even (sub n 1) then else)
+
+fact n return:
+    if (is_zero n) base recurse
+    base: return 1
+    recurse: return (mul n (fact (sub n 1)))
 
 fib n return:
-    if (isZero n) (:return 0) (:sub n 1 (m:))
-    if (isZero m) (:return 1) (:sub m 1 (k:))
+    if (is_zero n) (:return 0) (:sub n 1 (m:))
+    if (is_zero m) (:return 1) (:sub m 1 (k:))
     return (add (fib m) (fib k))
+

@@ -9,13 +9,14 @@ mod unparser;
 
 use self::{
     parser::Parser,
+    syntax::{Root, SyntaxNode},
     syntax_kind::{Language, SyntaxKind},
     token::Token,
 };
 use rowan::{ast::AstNode, GreenNode};
 
 pub use self::{
-    syntax::{Root, SyntaxNode},
+    name_resolution::{resolve, Resolution},
     unparser::unparse,
 };
 
@@ -26,7 +27,7 @@ pub struct Parse {
 }
 
 impl Parse {
-    pub fn root(&self) -> Root {
+    pub fn root(&self) -> syntax::Root {
         Root::cast(SyntaxNode::new_root(self.green_node.clone())).unwrap()
     }
 }
@@ -37,7 +38,7 @@ pub fn parse(text: &str) -> Parse {
     parser.finish()
 }
 
-pub fn print(node: &SyntaxNode) {
+pub fn print(root: Root) {
     fn print(depth: usize, node: &SyntaxNode) {
         println!("{:depth$}{:?}@{:?}", "", node.kind(), node.text_range());
         let depth = depth + 4;
@@ -56,5 +57,5 @@ pub fn print(node: &SyntaxNode) {
             }
         }
     }
-    print(0, node);
+    print(0, root.syntax());
 }

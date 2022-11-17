@@ -5,8 +5,10 @@ edition = "2021"
 
 [dependencies]
 ariadne = "0.1.5"
+colorgrad = "0.6.2"
 logos = "0.12.1"
 miette = { version = "5.4.1", features = ["fancy"] }
+owo-colors = "3.5.0"
 rowan = "0.15.10"
 strum = { version = "0.24.1", features = ["derive"] }
 

@@ -227,12 +227,6 @@ impl Call {
 }
 
 impl Group {
-    pub fn arguments(&self) -> impl Iterator<Item = Argument> {
-        self.syntax()
-            .children_with_tokens()
-            .filter_map(Argument::cast)
-    }
-
     pub fn def(&self) -> Option<Def> {
         self.syntax().children().next().and_then(Def::cast)
     }

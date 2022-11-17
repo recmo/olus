@@ -143,8 +143,10 @@ induct:      [n, ret]
 ## To do
 
 * Name resolution.
+* Alphabetize (make all identifiers unique using numeric subscripts).
 * Basic interpreter.
 * Determine closures.
-* Control flow analysis.
+* CFA.
   http://janmidtgaard.dk/papers/Midtgaard-CSur-final.pdf
+  https://matt.might.net/articles/implementation-of-kcfa-and-0cfa/
 * Full type checking.
