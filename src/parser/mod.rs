@@ -1,11 +1,9 @@
 // https://github.com/rust-analyzer/rowan/blob/master/examples/s_expressions.rs
 
-mod name_resolution;
 mod parser;
 pub mod syntax;
 mod syntax_kind;
 mod token;
-mod unparser;
 
 use self::{
     parser::Parser,
@@ -14,11 +12,6 @@ use self::{
     token::Token,
 };
 use rowan::{ast::AstNode, GreenNode};
-
-pub use self::{
-    name_resolution::{resolve, Resolution},
-    unparser::unparse,
-};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Parse {

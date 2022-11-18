@@ -118,9 +118,11 @@ my_proc a b c ↦ func a b (r: r c)
 
 1. [`lexer`] is a [logo] based tokenizer. It recognizes the minimal set of
    tokens the language has and parses nested quoted strings.
-2. [`parse`] is a [rowan] based concrete syntax tree. It recognizes indentation
+2. [`parse`] build the concrete syntax tree. It recognizes indentation
    blocks, lines and matches parenthesis.
-
+3. [`syntax`] a [rowan] based concrete syntax tree.
+4. [`Resolution`] matches identifier references to binding sites.
+5.
 
 ### Closures
 
@@ -142,7 +144,6 @@ induct:      [n, ret]
 
 ## To do
 
-* Name resolution.
 * Alphabetize (make all identifiers unique using numeric subscripts).
 * Basic interpreter.
 * Determine closures.
@@ -150,3 +151,8 @@ induct:      [n, ret]
   http://janmidtgaard.dk/papers/Midtgaard-CSur-final.pdf
   https://matt.might.net/articles/implementation-of-kcfa-and-0cfa/
 * Full type checking.
+
+
+## References
+
+* http://www.club.cc.cmu.edu/~ajo/disseminate/STAN-CS-76-562_EarlyDevelPgmgLang_Aug76.pdf

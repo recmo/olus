@@ -1,9 +1,8 @@
-use owo_colors::{DynColors, OwoColorize};
-
-use super::{
-    syntax::{Argument, Block, Call, Def, Identifier, Line, Proc, Root},
-    Resolution,
+use crate::{
+    front::Resolution,
+    parser::syntax::{Argument, Block, Call, Def, Identifier, Line, Proc, Root},
 };
+use owo_colors::{DynColors, OwoColorize};
 use std::io::{Error, Write};
 
 pub fn unparse<W: Write>(
@@ -108,7 +107,7 @@ impl<W: Write> Unparser<W> {
         let reference = self
             .resolution
             .as_ref()
-            .and_then(|resolution| resolution.resolve(&identifier));
+            .and_then(|resolution| resolution.lookup(&identifier));
         let color = reference.map(color).unwrap_or(DynColors::Rgb(0, 0, 0));
         let unbound = reference.is_none();
         let binds = Some(&identifier) == reference;

@@ -1,24 +1,23 @@
-/// TODO: Backwards pass.
-use super::syntax::{Argument, Call, Def, Group, Identifier, Line, Root};
+use crate::parser::syntax::{Argument, Call, Def, Group, Identifier, Line, Root};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Resolution(HashMap<Identifier, Identifier>);
 
 impl Resolution {
-    pub fn resolve(&self, identifier: &Identifier) -> Option<&Identifier> {
+    pub fn resolve(root: Root) -> Self {
+        let mut resolver = Resolver {
+            map: vec![HashMap::new()],
+            unbound: vec![HashMap::new()],
+            ..Default::default()
+        };
+        resolver.visit_root(root);
+        Self(resolver.resolution)
+    }
+
+    pub fn lookup(&self, identifier: &Identifier) -> Option<&Identifier> {
         self.0.get(identifier)
     }
-}
-
-pub fn resolve(root: Root) -> Resolution {
-    let mut resolver = Resolver {
-        map: vec![HashMap::new()],
-        unbound: vec![HashMap::new()],
-        ..Default::default()
-    };
-    resolver.visit_root(root);
-    Resolution(resolver.resolution)
 }
 
 #[derive(Debug, Default)]
