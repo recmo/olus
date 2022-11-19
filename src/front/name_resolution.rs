@@ -1,8 +1,15 @@
 use crate::parser::syntax::{Argument, Call, Def, Group, Identifier, Line, Root};
-use std::collections::HashMap;
+use rowan::{
+    ast::{AstNode, AstPtr, SyntaxNodePtr},
+    TextRange,
+};
+use std::{collections::HashMap, mem::size_of};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Resolution(HashMap<Identifier, Identifier>);
+pub struct Resolution {
+    pub binders: Vec<usize>,
+    refs:        HashMap<usize, usize>,
+}
 
 impl Resolution {
     pub fn resolve(root: Root) -> Self {
@@ -12,19 +19,32 @@ impl Resolution {
             ..Default::default()
         };
         resolver.visit_root(root);
-        Self(resolver.resolution)
+
+        let mut binders = vec![];
+        resolver.resolution.values().for_each(|id| {
+            if !binders.contains(id) {
+                binders.push(*id);
+            }
+        });
+
+        Self {
+            binders,
+            refs: resolver.resolution,
+        }
     }
 
-    pub fn lookup(&self, identifier: &Identifier) -> Option<&Identifier> {
-        self.0.get(identifier)
+    pub fn lookup(&self, identifier: &Identifier, root: &Root) -> Option<Identifier> {
+        self.refs
+            .get(&identifier.offset())
+            .and_then(|offset| root.identifier_at(*offset))
     }
 }
 
 #[derive(Debug, Default)]
 struct Resolver {
-    map:        Vec<HashMap<String, Identifier>>,
-    unbound:    Vec<HashMap<String, Vec<Identifier>>>,
-    resolution: HashMap<Identifier, Identifier>,
+    map:        Vec<HashMap<String, usize>>,
+    unbound:    Vec<HashMap<String, Vec<usize>>>,
+    resolution: HashMap<usize, usize>,
 }
 
 impl Resolver {
@@ -101,14 +121,14 @@ impl Resolver {
         self.map
             .last_mut()
             .unwrap()
-            .insert(identifier.text().to_owned(), identifier.clone());
+            .insert(identifier.text().to_owned(), identifier.offset());
         self.resolution
-            .insert(identifier.clone(), identifier.clone());
+            .insert(identifier.offset(), identifier.offset());
 
         // Resolve any unbound references to this identifier.
         if let Some(unbound) = self.unbound.last_mut().unwrap().get_mut(identifier.text()) {
             for reference in unbound.drain(..) {
-                self.resolution.insert(reference, identifier.clone());
+                self.resolution.insert(reference, identifier.offset());
             }
         }
     }
@@ -116,7 +136,7 @@ impl Resolver {
     fn visit_reference(&mut self, identifier: Identifier) {
         let bind = self.map.last().unwrap().get(identifier.text());
         if let Some(bind) = bind {
-            self.resolution.insert(identifier, bind.clone());
+            self.resolution.insert(identifier.offset(), bind.clone());
         } else {
             self.push_unbound(identifier);
         }
@@ -125,7 +145,7 @@ impl Resolver {
     fn push_unbound(&mut self, identifier: Identifier) {
         let map = self.unbound.last_mut().unwrap();
         let vec = map.entry(identifier.text().to_owned()).or_default();
-        vec.push(identifier);
+        vec.push(identifier.offset());
     }
 
     fn push_scope(&mut self) {

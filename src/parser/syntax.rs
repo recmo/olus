@@ -148,6 +148,13 @@ impl Root {
     pub fn lines(&self) -> impl Iterator<Item = Line> {
         self.syntax().children().filter_map(Line::cast)
     }
+
+    pub fn identifier_at(&self, offset: usize) -> Option<Identifier> {
+        self.syntax()
+            .token_at_offset(offset.try_into().unwrap())
+            .right_biased()
+            .and_then(Identifier::cast)
+    }
 }
 
 impl Block {
@@ -233,6 +240,12 @@ impl Group {
 
     pub fn call(&self) -> Option<Call> {
         self.syntax().children().next().and_then(Call::cast)
+    }
+}
+
+impl Identifier {
+    pub fn offset(&self) -> usize {
+        self.0.text_range().start().into()
     }
 }
 

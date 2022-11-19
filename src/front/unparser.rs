@@ -5,17 +5,18 @@ use crate::{
 use owo_colors::{DynColors, OwoColorize};
 use std::io::{Error, Write};
 
-pub fn unparse<W: Write>(
+pub fn unparse<'a, W: Write>(
     writer: &mut W,
-    node: Root,
-    resolution: Option<Resolution>,
+    root: Root,
+    resolution: Option<&'a Resolution>,
 ) -> Result<(), Error> {
     let mut unparser = Unparser {
         writer,
+        root,
         resolution,
         indent: 0,
     };
-    unparser.unparse_root(node)
+    unparser.unparse_root()
 }
 
 // Deterministic pseudo-random color for identifier
@@ -36,15 +37,16 @@ fn color(identifier: &Identifier) -> DynColors {
     DynColors::Rgb(color[0], color[1], color[2])
 }
 
-struct Unparser<W: Write> {
+struct Unparser<'a, W: Write> {
     writer:     W,
-    resolution: Option<Resolution>,
+    root:       Root,
+    resolution: Option<&'a Resolution>,
     indent:     usize,
 }
 
-impl<W: Write> Unparser<W> {
-    fn unparse_root(&mut self, root: Root) -> Result<(), Error> {
-        for line in root.lines() {
+impl<'a, W: Write> Unparser<'a, W> {
+    fn unparse_root(&mut self) -> Result<(), Error> {
+        for line in self.root.lines() {
             self.unparse_line(line)?;
             writeln!(self.writer)?;
         }
@@ -106,11 +108,13 @@ impl<W: Write> Unparser<W> {
     fn unparse_identifier(&mut self, identifier: Identifier) -> Result<(), Error> {
         let reference = self
             .resolution
+            .and_then(|resolution| resolution.lookup(&identifier, &self.root));
+        let color = reference
             .as_ref()
-            .and_then(|resolution| resolution.lookup(&identifier));
-        let color = reference.map(color).unwrap_or(DynColors::Rgb(0, 0, 0));
+            .map(color)
+            .unwrap_or(DynColors::Rgb(0, 0, 0));
         let unbound = reference.is_none();
-        let binds = Some(&identifier) == reference;
+        let binds = Some(&identifier) == reference.as_ref();
         if unbound {
             write!(self.writer, "{}", identifier.text().on_bright_red())
         } else if binds {
