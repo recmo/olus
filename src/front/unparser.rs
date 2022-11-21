@@ -69,7 +69,7 @@ impl<'a, W: Write> Unparser<'a, W> {
     }
 
     fn unparse_def(&mut self, def: Def) -> Result<(), Error> {
-        self.unparse_proc(def.proc())?;
+        self.unparse_proc(def.procedure())?;
         if let Some(call) = def.call() {
             write!(self.writer, " ")?;
             self.unparse_call(call)?;

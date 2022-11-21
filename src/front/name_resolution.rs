@@ -33,6 +33,12 @@ impl Resolution {
         }
     }
 
+    pub fn binders<'a>(&'a self, root: &'a Root) -> impl Iterator<Item = Identifier> + 'a {
+        self.binders
+            .iter()
+            .flat_map(|offset| root.identifier_at(*offset))
+    }
+
     pub fn lookup(&self, identifier: &Identifier, root: &Root) -> Option<Identifier> {
         self.refs
             .get(&identifier.offset())
@@ -63,7 +69,7 @@ impl Resolver {
 
     fn visit_def(&mut self, def: Def) {
         // If it has a name, the name goes into the current scope.
-        if let Some(name) = def.proc().name() {
+        if let Some(name) = def.procedure().name() {
             self.visit_bind(name);
         }
         // If it has a block, everything else goes into the block's scope.
@@ -71,7 +77,7 @@ impl Resolver {
         if def.block().is_some() {
             self.push_scope();
         }
-        for parameter in def.proc().parameters() {
+        for parameter in def.procedure().parameters() {
             self.visit_bind(parameter);
         }
         if let Some(call) = def.call() {

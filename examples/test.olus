@@ -1,17 +1,10 @@
-use if is_zero add mul sub:
+use if is_zero add mul sub: use
 
 is_even n then else:
     if (is_zero n) then (: is_odd (sub n 1) then else)
 
 is_odd n then else:
     if (is_zero n) else (: is_even (sub n 1) then else)
-
-scoped name resolution:
-    is_even n then else:
-        if (is_zero n) then (: is_odd (sub n 1) then else)
-
-    is_odd n then else:
-        if (is_zero n) else (: is_even (sub n 1) then else)
 
 fact n return:
     if (is_zero n) base recurse
@@ -23,13 +16,5 @@ fib n return:
     if (is_zero m) (:return 1) (:sub m 1 (k:))
     return (add (fib m) (fib k))
 
-
 is_even n then else:
     if (is_zero n) then (: is_odd (sub n 1) then else)
-
-
-is_even n then else: is_zero n group2
-group2 x: if x then group
-group: sub n 1 group1
-group1 x: is_odd x then else
-

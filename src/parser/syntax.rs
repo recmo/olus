@@ -101,16 +101,16 @@ impl AstNode for Line {
 }
 
 impl Line {
-    pub fn def(&self) -> Option<&Def> {
+    pub fn def(&self) -> Option<Def> {
         match self {
-            Self::Def(def) => Some(def),
+            Self::Def(def) => Some(def.clone()),
             _ => None,
         }
     }
 
-    pub fn call(&self) -> Option<&Call> {
+    pub fn call(&self) -> Option<Call> {
         match self {
-            Self::Call(call) => Some(call),
+            Self::Call(call) => Some(call.clone()),
             _ => None,
         }
     }
@@ -149,6 +149,10 @@ impl Root {
         self.syntax().children().filter_map(Line::cast)
     }
 
+    pub fn defs(&self) -> impl Iterator<Item = Def> {
+        self.syntax().children().filter_map(Def::cast)
+    }
+
     pub fn identifier_at(&self, offset: usize) -> Option<Identifier> {
         self.syntax()
             .token_at_offset(offset.try_into().unwrap())
@@ -172,7 +176,7 @@ impl Def {
         self.0.next_sibling().and_then(Block::cast)
     }
 
-    pub fn proc(&self) -> Proc {
+    pub fn procedure(&self) -> Proc {
         self.syntax()
             .children()
             .filter_map(Proc::cast)
@@ -181,7 +185,23 @@ impl Def {
     }
 
     pub fn call(&self) -> Option<Call> {
-        self.syntax().children().filter_map(Call::cast).next()
+        // Try same line first
+        if let Some(call) = self.syntax().children().filter_map(Call::cast).next() {
+            return Some(call);
+        }
+
+        // Try next line in block
+        // TODO: Next line in nested def
+        let next_line = if let Some(block) = self.block() {
+            block.lines().next()
+        } else {
+            self.syntax().next_sibling().and_then(Line::cast)
+        };
+
+        if let Some(call) = next_line.and_then(|line| line.call()) {
+            return Some(call);
+        }
+        None
     }
 }
 
