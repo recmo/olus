@@ -1,6 +1,5 @@
-use ariadne::{Cache, Color, FileCache, Fmt, Label, Report, ReportKind, Source};
 use olus::Files;
-use std::{fs::read_to_string, path::PathBuf};
+use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::env::set_var("RUST_BACKTRACE", "full");

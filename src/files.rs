@@ -27,6 +27,7 @@ pub struct Span {
 }
 
 impl Files {
+    #[must_use]
     pub fn new() -> Self {
         Self { files: Vec::new() }
     }
@@ -60,6 +61,7 @@ impl ariadne::Cache<FileId> for &Files {
 }
 
 impl FileId {
+    #[must_use]
     pub fn span(&self, range: Range<usize>) -> Span {
         Span {
             file:  *self,
@@ -90,19 +92,23 @@ impl File {
 }
 
 impl Span {
+    #[must_use]
     pub fn file(&self) -> FileId {
         self.file
     }
 
+    #[must_use]
     pub fn range(&self) -> Range<usize> {
         self.start..self.end
     }
 
+    #[must_use]
     pub fn label(&self) -> Label<Self> {
         Label::new(*self)
     }
 
-    pub fn report(&self, kind: ReportKind) -> ReportBuilder<Span> {
+    #[must_use]
+    pub fn report(&self, kind: ReportKind) -> ReportBuilder<Self> {
         Report::build(kind, self.file, self.range().start)
     }
 }

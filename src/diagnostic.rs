@@ -9,6 +9,7 @@ pub struct Diagnostic {
 }
 
 impl Diagnostic {
+    #[must_use]
     pub fn report(&self) -> Report<Span> {
         self.span
             .report(ReportKind::Error)

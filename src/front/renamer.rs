@@ -7,6 +7,7 @@ use std::collections::HashMap;
 pub struct Naming(HashMap<Identifier, String>);
 
 impl Naming {
+    #[must_use]
     pub fn name(resolution: &Resolution) -> Self {
         todo!()
 
@@ -35,6 +36,7 @@ impl Naming {
         // Self(names)
     }
 
+    #[must_use]
     pub fn lookup(&self, identifier: &Identifier) -> Option<&String> {
         self.0.get(identifier)
     }

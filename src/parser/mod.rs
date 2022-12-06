@@ -23,11 +23,13 @@ pub struct Parse {
 }
 
 impl Parse {
+    #[must_use]
     pub fn root(&self) -> syntax::Root {
         Root::cast(SyntaxNode::new_root(self.green_node.clone())).unwrap()
     }
 }
 
+#[must_use]
 pub fn parse(file_id: FileId, text: &str) -> Parse {
     let mut parser = Parser::new(file_id, text);
     parser.parse_root();

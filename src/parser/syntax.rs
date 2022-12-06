@@ -38,14 +38,17 @@ macro_rules! ast_token {
         pub struct $ast(SyntaxToken);
 
         impl $ast {
+            #[must_use]
             pub fn text(&self) -> &str {
                 self.0.text()
             }
 
+            #[must_use]
             pub fn can_cast(kind: SyntaxKind) -> bool {
                 kind == SyntaxKind::Token(Token::$kind)
             }
 
+            #[must_use]
             pub fn cast(node: SyntaxToken) -> Option<Self> {
                 if Self::can_cast(node.kind()) {
                     Some(Self(node))
@@ -54,6 +57,7 @@ macro_rules! ast_token {
                 }
             }
 
+            #[must_use]
             pub fn syntax(&self) -> &SyntaxToken {
                 &self.0
             }
@@ -101,6 +105,7 @@ impl AstNode for Line {
 }
 
 impl Line {
+    #[must_use]
     pub fn def(&self) -> Option<Def> {
         match self {
             Self::Def(def) => Some(def.clone()),
@@ -108,6 +113,7 @@ impl Line {
         }
     }
 
+    #[must_use]
     pub fn call(&self) -> Option<Call> {
         match self {
             Self::Call(call) => Some(call.clone()),
@@ -115,6 +121,7 @@ impl Line {
         }
     }
 
+    #[must_use]
     pub fn block(&self) -> Option<Block> {
         match self {
             Self::Def(def) => def.block(),
@@ -181,27 +188,18 @@ impl Def {
     pub fn line(&self) -> Line {
         self.syntax()
             .ancestors()
-            .filter(|node| {
-                node.parent()
-                    .map(|n| Block::can_cast(n.kind()))
-                    .unwrap_or(true)
-            })
-            .filter_map(Line::cast)
-            .next()
+            .filter(|node| node.parent().map_or(true, |n| Block::can_cast(n.kind())))
+            .find_map(Line::cast)
             .unwrap()
     }
 
     pub fn procedure(&self) -> Proc {
-        self.syntax()
-            .children()
-            .filter_map(Proc::cast)
-            .next()
-            .unwrap()
+        self.syntax().children().find_map(Proc::cast).unwrap()
     }
 
     pub fn call(&self) -> Option<Call> {
         // Try same line first
-        if let Some(call) = self.syntax().children().filter_map(Call::cast).next() {
+        if let Some(call) = self.syntax().children().find_map(Call::cast) {
             return Some(call);
         }
 
@@ -231,6 +229,7 @@ impl Proc {
             .filter_map(Identifier::cast)
     }
 
+    #[must_use]
     pub fn name(&self) -> Option<Identifier> {
         if self.group().is_some() {
             None
@@ -278,12 +277,14 @@ impl Group {
 }
 
 impl Identifier {
+    #[must_use]
     pub fn offset(&self) -> usize {
         self.0.text_range().start().into()
     }
 }
 
 impl String {
+    #[must_use]
     pub fn value(&self) -> &str {
         let raw = self.syntax().text();
         // Trim enclosing quotes

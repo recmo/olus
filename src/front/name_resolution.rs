@@ -12,6 +12,7 @@ pub struct Resolution {
 }
 
 impl Resolution {
+    #[must_use]
     pub fn resolve(root: Root) -> Self {
         let mut resolver = Resolver {
             map: vec![HashMap::new()],
@@ -36,9 +37,10 @@ impl Resolution {
     pub fn binders<'a>(&'a self, root: &'a Root) -> impl Iterator<Item = Identifier> + 'a {
         self.binders
             .iter()
-            .flat_map(|offset| root.identifier_at(*offset))
+            .filter_map(|offset| root.identifier_at(*offset))
     }
 
+    #[must_use]
     pub fn lookup(&self, identifier: &Identifier, root: &Root) -> Option<Identifier> {
         self.refs
             .get(&identifier.offset())
@@ -64,7 +66,7 @@ impl Resolver {
     }
 
     fn visit_line(&mut self, line: Line) {
-        match line.clone() {
+        match line {
             Line::Def(def) => self.visit_def(def),
             Line::Call(call) => self.visit_call(call),
         };
@@ -145,7 +147,7 @@ impl Resolver {
     fn visit_reference(&mut self, identifier: Identifier) {
         let bind = self.map.last().unwrap().get(identifier.text());
         if let Some(bind) = bind {
-            self.resolution.insert(identifier.offset(), bind.clone());
+            self.resolution.insert(identifier.offset(), *bind);
         } else {
             self.push_unbound(identifier);
         }
@@ -173,7 +175,7 @@ impl Resolver {
             // Check if they are bound in the current scope.
             if let Some(bind) = current_bind.get(&text) {
                 for reference in identifiers {
-                    self.resolution.insert(reference, bind.clone());
+                    self.resolution.insert(reference, *bind);
                 }
             } else {
                 let vec = current.entry(text).or_default();

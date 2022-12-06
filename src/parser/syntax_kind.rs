@@ -37,8 +37,7 @@ impl rowan::Language for Language {
         if raw < Token::COUNT {
             SyntaxKind::Token(Token::from_repr(raw).unwrap())
         } else {
-            SyntaxKind::from_repr(raw - Token::COUNT)
-                .unwrap_or_else(|| SyntaxKind::Token(Token::Error))
+            SyntaxKind::from_repr(raw - Token::COUNT).unwrap_or(SyntaxKind::Token(Token::Error))
         }
     }
 

@@ -62,8 +62,8 @@ impl<'a> Display for Sugared<'a> {
 
 impl<'a> Sugared<'a> {
     fn write<W: Write>(&self, f: &mut W) -> std::fmt::Result {
-        for definition in self.definitions.iter() {
-            self.write_definition(f, &definition)?;
+        for definition in &self.definitions {
+            self.write_definition(f, definition)?;
             writeln!(f)?;
         }
         Ok(())
@@ -94,7 +94,7 @@ impl<'a> Sugared<'a> {
         match expression {
             Expression::Reference { binder, .. } => self.write_identifier(f, *binder),
             Expression::String { span } => write!(f, "“{}”", &self.source[span.clone()]),
-            Expression::Number { value, .. } => write!(f, "{}", value),
+            Expression::Number { value, .. } => write!(f, "{value}"),
             Expression::Definition {
                 procedure, call, ..
             } => {
@@ -127,6 +127,7 @@ impl<'a> Sugared<'a> {
     }
 }
 
+#[must_use]
 pub fn parse<'a>(files: &'a Files, file_id: FileId) -> Sugared<'a> {
     let source = files[file_id].contents();
     let parse = crate::parser::parse(file_id, source);
@@ -134,9 +135,7 @@ pub fn parse<'a>(files: &'a Files, file_id: FileId) -> Sugared<'a> {
     for error in &parse.errors {
         error.report().eprint(files);
     }
-    if !parse.errors.is_empty() {
-        panic!("Parse errors");
-    }
+    assert!(parse.errors.is_empty(), "Parse errors");
 
     let root = parse.root();
     let mut parser = Parser {
@@ -146,7 +145,7 @@ pub fn parse<'a>(files: &'a Files, file_id: FileId) -> Sugared<'a> {
             binders: Vec::new(),
         },
         root:       root.clone(),
-        resolution: Resolution::resolve(root.clone()),
+        resolution: Resolution::resolve(root),
     };
     parser.collect_binders();
     parser.parse_root();
