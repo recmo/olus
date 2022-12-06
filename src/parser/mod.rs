@@ -11,12 +11,15 @@ use self::{
     syntax_kind::{Language, SyntaxKind},
     token::Token,
 };
+use crate::{Diagnostic, FileId, Span};
+use ariadne::{Color, Report, ReportKind};
 use rowan::{ast::AstNode, GreenNode};
+use std::ops::Range;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Parse {
     pub green_node: GreenNode,
-    pub errors:     Vec<String>,
+    pub errors:     Vec<Diagnostic>,
 }
 
 impl Parse {
@@ -25,8 +28,8 @@ impl Parse {
     }
 }
 
-pub fn parse(text: &str) -> Parse {
-    let mut parser = Parser::new(text);
+pub fn parse(file_id: FileId, text: &str) -> Parse {
+    let mut parser = Parser::new(file_id, text);
     parser.parse_root();
     parser.finish()
 }

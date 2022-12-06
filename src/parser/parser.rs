@@ -1,22 +1,26 @@
 use super::{Parse, SyntaxKind, Token};
+use crate::{Diagnostic, FileId, Span};
 use logos::Lexer;
 use rowan::GreenNodeBuilder;
+use std::ops::Range;
 
 const INDENT_SIZE: usize = 4;
 
 pub(super) struct Parser<'source> {
+    file_id: FileId,
     lexer:   Lexer<'source, Token>,
     peek:    Option<Token>,
     indent:  usize,
     builder: GreenNodeBuilder<'static>,
-    errors:  Vec<String>,
+    errors:  Vec<Diagnostic>,
 }
 
 impl<'source> Parser<'source> {
-    pub(super) fn new(text: &'source str) -> Self {
+    pub(super) fn new(file_id: FileId, text: &'source str) -> Self {
         let mut lexer = Lexer::new(text);
         let peek = lexer.next();
         Self {
+            file_id,
             lexer,
             peek,
             indent: 0,
@@ -161,11 +165,8 @@ impl<'source> Parser<'source> {
                     self.bump();
                 }
                 Some(Token::ParenClose) => {
-                    if !in_group {
-                        self.error("unexpected closing parenthesis");
-                        self.bump();
-                    }
-                    break;
+                    self.error("unexpected closing parenthesis");
+                    self.bump();
                 }
                 Some(Token::Error) => {
                     self.error("unexpected character");
@@ -183,8 +184,10 @@ impl<'source> Parser<'source> {
 
         self.parse_def(true);
 
-        assert_eq!(self.peek, Some(Token::ParenClose));
+        // Note: This can also be EOF or newline if there is a parse error
+        // assert_eq!(self.peek, Some(Token::ParenClose));
         self.bump();
+
         self.builder.finish_node();
     }
 
@@ -197,9 +200,15 @@ impl<'source> Parser<'source> {
         self.peek = self.lexer.next();
     }
 
-    fn error(&mut self, message: &str) {
-        // TODO: Diagnostics
-        println!("error: {message}");
-        self.errors.push(message.to_string());
+    /// The span of the current token.
+    fn span(&self) -> Span {
+        self.file_id.span(self.lexer.span())
+    }
+
+    fn error<S: Into<String>>(&mut self, message: S) {
+        self.errors.push(Diagnostic {
+            message: message.into(),
+            span:    self.span(),
+        });
     }
 }

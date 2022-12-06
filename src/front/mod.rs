@@ -2,9 +2,12 @@ mod name_resolution;
 mod renamer;
 mod unparser;
 
+use crate::{
+    files::{FileId, Files},
+    parser::syntax::{Argument, Identifier, Line, Root},
+};
+use ariadne::{Color, Label, Report, ReportKind, Source};
 use rowan::ast::AstNode;
-
-use crate::parser::syntax::{Argument, Identifier, Line, Root};
 use std::{
     fmt::{Display, Write},
     ops::Range,
@@ -36,9 +39,14 @@ pub enum Expression {
     String {
         span: Range<usize>,
     },
+    Number {
+        value: u64,
+        span:  Range<usize>,
+    },
     Definition {
         span:      Range<usize>,
-        call_span: Range<usize>,
+        procedure: Vec<usize>,
+        call:      Vec<Expression>,
     },
     Call {
         span: Range<usize>,
@@ -86,8 +94,24 @@ impl<'a> Sugared<'a> {
         match expression {
             Expression::Reference { binder, .. } => self.write_identifier(f, *binder),
             Expression::String { span } => write!(f, "“{}”", &self.source[span.clone()]),
-            Expression::Definition { span, call_span } => {
-                write!(f, "(<todo>)")
+            Expression::Number { value, .. } => write!(f, "{}", value),
+            Expression::Definition {
+                procedure, call, ..
+            } => {
+                for (i, param) in procedure.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, " ")?;
+                    }
+                    self.write_identifier(f, *param)?;
+                }
+                write!(f, ": ")?;
+                for (i, arg) in call.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, " ")?;
+                    }
+                    self.write_expression(f, arg)?;
+                }
+                Ok(())
             }
             Expression::Call { span, call } => {
                 write!(f, "(")?;
@@ -103,8 +127,18 @@ impl<'a> Sugared<'a> {
     }
 }
 
-pub fn parse<'a>(source: &'a str) -> Sugared<'a> {
-    let root = crate::parser::parse(source).root();
+pub fn parse<'a>(files: &'a Files, file_id: FileId) -> Sugared<'a> {
+    let source = files[file_id].contents();
+    let parse = crate::parser::parse(file_id, source);
+
+    for error in &parse.errors {
+        error.report().eprint(files);
+    }
+    if !parse.errors.is_empty() {
+        panic!("Parse errors");
+    }
+
+    let root = parse.root();
     let mut parser = Parser {
         sugared:    Sugared {
             source,
@@ -183,15 +217,28 @@ impl<'a> Parser<'a> {
             Argument::String(string) => Expression::String {
                 span: string.syntax().text_range().into(),
             },
-            Argument::Number(number) => Expression::String {
-                span: number.syntax().text_range().into(),
+            Argument::Number(number) => Expression::Number {
+                value: number.syntax().text().parse().unwrap(),
+                span:  number.syntax().text_range().into(),
             },
             Argument::Group(group) => {
                 if let Some(def) = group.def() {
-                    // TODO:
+                    let mut procedure = Vec::new();
+                    for id in def.procedure().identifiers() {
+                        procedure.push(self.lookup_binder(&id).unwrap());
+                    }
+                    dbg!(def.syntax().text());
+                    let mut call = def
+                        .call()
+                        .unwrap()
+                        .arguments()
+                        .map(|arg| self.parse_argument(arg))
+                        .collect::<Vec<_>>();
+
                     Expression::Definition {
-                        span:      def.syntax().text_range().into(),
-                        call_span: def.call().unwrap().syntax().text_range().into(),
+                        span: def.syntax().text_range().into(),
+                        procedure,
+                        call,
                     }
                 } else if let Some(call) = group.call() {
                     Expression::Call {

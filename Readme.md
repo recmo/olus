@@ -147,7 +147,7 @@ induct:      [n, ret]
 * Alphabetize (make all identifiers unique using numeric subscripts).
 * Basic interpreter.
 * Determine closures.
-* CFA.
+* k-CFA.
   http://janmidtgaard.dk/papers/Midtgaard-CSur-final.pdf
   https://matt.might.net/articles/implementation-of-kcfa-and-0cfa/
 * Full type checking.
@@ -156,3 +156,6 @@ induct:      [n, ret]
 ## References
 
 * http://www.club.cc.cmu.edu/~ajo/disseminate/STAN-CS-76-562_EarlyDevelPgmgLang_Aug76.pdf
+https://cs.au.dk/~amoeller/spa/
+
+https://github.com/Kixiron/rust-langdev

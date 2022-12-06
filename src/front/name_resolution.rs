@@ -53,6 +53,9 @@ struct Resolver {
     resolution: HashMap<usize, usize>,
 }
 
+/// Single pass name resolution.
+///
+/// It maintains a stack of current scopes, and a stack of unbound references.
 impl Resolver {
     fn visit_root(&mut self, root: Root) {
         for line in root.lines() {

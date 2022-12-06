@@ -2,15 +2,16 @@
 name = "olus"
 version = "0.1.0"
 edition = "2021"
+default-run = "olus"
 
 [dependencies]
 ariadne = "0.1.5"
-colorgrad = "0.6.2"
 logos = "0.12.1"
-miette = { version = "5.4.1", features = ["fancy"] }
-owo-colors = "3.5.0"
 rowan = "0.15.10"
 strum = { version = "0.24.1", features = ["derive"] }
+tokio = { version = "1.22.0", features = ["full"] }
+tower-lsp = "0.17.0"
+yansi = "0.5.1"
 
 # Compilation profile for any non-workspace member.
 # Dependencies are optimized, even in a dev build. This improves dev performance

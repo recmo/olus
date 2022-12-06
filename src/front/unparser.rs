@@ -2,7 +2,7 @@ use crate::{
     front::Resolution,
     parser::syntax::{Argument, Block, Call, Def, Identifier, Line, Proc, Root},
 };
-use owo_colors::{DynColors, OwoColorize};
+use ariadne::{Color, ColorGenerator, Fmt};
 use std::io::{Error, Write};
 
 pub fn unparse<'a, W: Write>(
@@ -10,37 +10,29 @@ pub fn unparse<'a, W: Write>(
     root: Root,
     resolution: Option<&'a Resolution>,
 ) -> Result<(), Error> {
+    let colors = if let Some(res) = resolution {
+        let mut color_generator = ColorGenerator::new();
+        res.binders
+            .iter()
+            .map(|_| color_generator.next())
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
     let mut unparser = Unparser {
         writer,
         root,
         resolution,
+        colors,
         indent: 0,
     };
     unparser.unparse_root()
 }
-
-// Deterministic pseudo-random color for identifier
-fn color(identifier: &Identifier) -> DynColors {
-    use std::{
-        collections::hash_map::DefaultHasher,
-        hash::{Hash, Hasher},
-    };
-
-    let grad = colorgrad::rainbow();
-    let hash = {
-        let mut hasher = DefaultHasher::new();
-        identifier.text().hash(&mut hasher);
-        identifier.syntax().text_range().hash(&mut hasher);
-        hasher.finish() as f64 / std::u64::MAX as f64
-    };
-    let color = grad.at(hash).to_rgba8();
-    DynColors::Rgb(color[0], color[1], color[2])
-}
-
 struct Unparser<'a, W: Write> {
     writer:     W,
     root:       Root,
     resolution: Option<&'a Resolution>,
+    colors:     Vec<Color>,
     indent:     usize,
 }
 
@@ -109,18 +101,17 @@ impl<'a, W: Write> Unparser<'a, W> {
         let reference = self
             .resolution
             .and_then(|resolution| resolution.lookup(&identifier, &self.root));
-        let color = reference
-            .as_ref()
-            .map(color)
-            .unwrap_or(DynColors::Rgb(0, 0, 0));
+
+        let color = Color::Black;
+
         let unbound = reference.is_none();
         let binds = Some(&identifier) == reference.as_ref();
         if unbound {
-            write!(self.writer, "{}", identifier.text().on_bright_red())
+            write!(self.writer, "{}", Color::Red.paint(identifier.text()))
         } else if binds {
-            write!(self.writer, "{}", identifier.text().color(color).bold())
+            write!(self.writer, "{}", color.paint(identifier.text()).bold())
         } else {
-            write!(self.writer, "{}", identifier.text().color(color))
+            write!(self.writer, "{}", color.paint(identifier.text()))
         }
     }
 

@@ -172,8 +172,23 @@ impl Block {
 }
 
 impl Def {
+    /// The block (if any) immediately following this definition.
     pub fn block(&self) -> Option<Block> {
         self.0.next_sibling().and_then(Block::cast)
+    }
+
+    /// The line containing this definition.
+    pub fn line(&self) -> Line {
+        self.syntax()
+            .ancestors()
+            .filter(|node| {
+                node.parent()
+                    .map(|n| Block::can_cast(n.kind()))
+                    .unwrap_or(true)
+            })
+            .filter_map(Line::cast)
+            .next()
+            .unwrap()
     }
 
     pub fn procedure(&self) -> Proc {
@@ -190,18 +205,17 @@ impl Def {
             return Some(call);
         }
 
-        // Try next line in block
-        // TODO: Next line in nested def
-        let next_line = if let Some(block) = self.block() {
-            block.lines().next()
-        } else {
-            self.syntax().next_sibling().and_then(Line::cast)
-        };
-
-        if let Some(call) = next_line.and_then(|line| line.call()) {
-            return Some(call);
+        // Try next line in associated block
+        if let Some(block) = self.block() {
+            let next_line = block.lines().next();
+            if let Some(call) = next_line.and_then(|line| line.call()) {
+                return Some(call);
+            }
         }
-        None
+
+        // Try next line in containing block
+        dbg!(self.line().syntax().text());
+        self.line().syntax().next_sibling().and_then(Call::cast)
     }
 }
 
