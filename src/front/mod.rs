@@ -128,7 +128,7 @@ impl<'a> Sugared<'a> {
 }
 
 #[must_use]
-pub fn parse<'a>(files: &'a Files, file_id: FileId) -> Sugared<'a> {
+pub fn parse(files: &Files, file_id: FileId) -> Sugared {
     let source = files[file_id].contents();
     let parse = crate::parser::parse(file_id, source);
 
@@ -145,7 +145,7 @@ pub fn parse<'a>(files: &'a Files, file_id: FileId) -> Sugared<'a> {
             binders: Vec::new(),
         },
         root:       root.clone(),
-        resolution: Resolution::resolve(root),
+        resolution: Resolution::resolve(&root),
     };
     parser.collect_binders();
     parser.parse_root();

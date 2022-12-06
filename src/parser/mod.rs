@@ -36,7 +36,7 @@ pub fn parse(file_id: FileId, text: &str) -> Parse {
     parser.finish()
 }
 
-pub fn print(root: Root) {
+pub fn print(root: &Root) {
     fn print(depth: usize, node: &SyntaxNode) {
         println!("{:depth$}{:?}@{:?}", "", node.kind(), node.text_range());
         let depth = depth + 4;
@@ -50,7 +50,7 @@ pub fn print(root: Root) {
                         token.kind(),
                         token.text_range(),
                         token.text()
-                    )
+                    );
                 }
             }
         }

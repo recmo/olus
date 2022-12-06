@@ -1,4 +1,5 @@
 use super::{syntax_kind::SyntaxKind, token::Token, Language};
+use crate::{FileId, Span};
 use rowan::{ast::AstNode, NodeOrToken};
 
 pub type SyntaxNode = rowan::SyntaxNode<Language>;
@@ -9,6 +10,14 @@ macro_rules! ast_node {
     ($ast:ident, $kind:ident) => {
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
         pub struct $ast(SyntaxNode);
+
+        impl $ast {
+            #[must_use]
+            pub fn span(&self, file: FileId) -> Span {
+                let range = self.syntax().text_range();
+                file.span(range.start().into()..range.end().into())
+            }
+        }
 
         impl AstNode for $ast {
             type Language = Language;
@@ -44,6 +53,12 @@ macro_rules! ast_token {
             }
 
             #[must_use]
+            pub fn span(&self, file: FileId) -> Span {
+                let range = self.syntax().text_range();
+                file.span(range.start().into()..range.end().into())
+            }
+
+            #[must_use]
             pub fn can_cast(kind: SyntaxKind) -> bool {
                 kind == SyntaxKind::Token(Token::$kind)
             }
@@ -58,7 +73,7 @@ macro_rules! ast_token {
             }
 
             #[must_use]
-            pub fn syntax(&self) -> &SyntaxToken {
+            pub const fn syntax(&self) -> &SyntaxToken {
                 &self.0
             }
         }
@@ -109,7 +124,7 @@ impl Line {
     pub fn def(&self) -> Option<Def> {
         match self {
             Self::Def(def) => Some(def.clone()),
-            _ => None,
+            Self::Call(_) => None,
         }
     }
 
@@ -117,7 +132,7 @@ impl Line {
     pub fn call(&self) -> Option<Call> {
         match self {
             Self::Call(call) => Some(call.clone()),
-            _ => None,
+            Self::Def(_) => None,
         }
     }
 
@@ -239,8 +254,7 @@ impl Proc {
     }
 
     pub fn parameters(&self) -> impl Iterator<Item = Identifier> {
-        self.identifiers()
-            .skip(if self.group().is_some() { 0 } else { 1 })
+        self.identifiers().skip(usize::from(self.group().is_some()))
     }
 }
 

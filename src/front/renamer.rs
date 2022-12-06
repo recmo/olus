@@ -47,9 +47,15 @@ fn suffix(index: usize, count: usize) -> String {
     if count <= 1 {
         return String::new();
     }
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        clippy::cast_precision_loss
+    )]
     let n_digits = (count as f64).log10().ceil() as usize;
     let mut suffix = String::with_capacity(n_digits);
     for i in 0..n_digits {
+        #[allow(clippy::cast_possible_truncation)]
         suffix.push(DIGITS[(index / 10usize.pow(i as u32)) % 10]);
     }
     suffix

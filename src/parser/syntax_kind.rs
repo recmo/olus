@@ -18,6 +18,7 @@ pub enum SyntaxKind {
 }
 
 impl From<SyntaxKind> for rowan::SyntaxKind {
+    #[allow(clippy::cast_possible_truncation)] // We know that the discriminant fits in a u16
     fn from(kind: SyntaxKind) -> Self {
         Self(match kind {
             SyntaxKind::Token(token) => token as u16,

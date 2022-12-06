@@ -147,7 +147,7 @@ impl<'source> Parser<'source> {
                 }
                 Some(Token::Identifier | Token::String | Token::Number | Token::Whitespace) => {
                     count += 1;
-                    self.bump()
+                    self.bump();
                 }
                 Some(Token::Newline) | None if !in_group => {
                     self.bump();

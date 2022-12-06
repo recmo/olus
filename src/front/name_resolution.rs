@@ -13,7 +13,7 @@ pub struct Resolution {
 
 impl Resolution {
     #[must_use]
-    pub fn resolve(root: Root) -> Self {
+    pub fn resolve(root: &Root) -> Self {
         let mut resolver = Resolver {
             map: vec![HashMap::new()],
             unbound: vec![HashMap::new()],
@@ -59,23 +59,23 @@ struct Resolver {
 ///
 /// It maintains a stack of current scopes, and a stack of unbound references.
 impl Resolver {
-    fn visit_root(&mut self, root: Root) {
+    fn visit_root(&mut self, root: &Root) {
         for line in root.lines() {
-            self.visit_line(line);
+            self.visit_line(&line);
         }
     }
 
-    fn visit_line(&mut self, line: Line) {
+    fn visit_line(&mut self, line: &Line) {
         match line {
             Line::Def(def) => self.visit_def(def),
             Line::Call(call) => self.visit_call(call),
         };
     }
 
-    fn visit_def(&mut self, def: Def) {
+    fn visit_def(&mut self, def: &Def) {
         // If it has a name, the name goes into the current scope.
         if let Some(name) = def.procedure().name() {
-            self.visit_bind(name);
+            self.visit_bind(&name);
         }
         // If it has a block, everything else goes into the block's scope.
         // If not, everything goes in the current scope.
@@ -83,35 +83,35 @@ impl Resolver {
             self.push_scope();
         }
         for parameter in def.procedure().parameters() {
-            self.visit_bind(parameter);
+            self.visit_bind(&parameter);
         }
         if let Some(call) = def.call() {
-            self.visit_call(call);
+            self.visit_call(&call);
         }
         if let Some(block) = def.block() {
             for line in block.lines() {
-                self.visit_line(line);
+                self.visit_line(&line);
             }
             self.pop_scope();
         }
     }
 
-    fn visit_call(&mut self, call: Call) {
+    fn visit_call(&mut self, call: &Call) {
         if call.block().is_some() {
             self.push_scope();
         }
         for argument in call.arguments() {
-            self.visit_argument(argument);
+            self.visit_argument(&argument);
         }
         if let Some(block) = call.block() {
             for line in block.lines() {
-                self.visit_line(line);
+                self.visit_line(&line);
             }
             self.pop_scope();
         }
     }
 
-    fn visit_argument(&mut self, argument: Argument) {
+    fn visit_argument(&mut self, argument: &Argument) {
         match argument {
             Argument::Identifier(identifier) => self.visit_reference(identifier),
             Argument::Group(group) => self.visit_group(group),
@@ -119,16 +119,16 @@ impl Resolver {
         }
     }
 
-    fn visit_group(&mut self, group: Group) {
+    fn visit_group(&mut self, group: &Group) {
         if let Some(def) = group.def() {
-            self.visit_def(def);
+            self.visit_def(&def);
         }
         if let Some(call) = group.call() {
-            self.visit_call(call);
+            self.visit_call(&call);
         }
     }
 
-    fn visit_bind(&mut self, identifier: Identifier) {
+    fn visit_bind(&mut self, identifier: &Identifier) {
         self.map
             .last_mut()
             .unwrap()
@@ -144,7 +144,7 @@ impl Resolver {
         }
     }
 
-    fn visit_reference(&mut self, identifier: Identifier) {
+    fn visit_reference(&mut self, identifier: &Identifier) {
         let bind = self.map.last().unwrap().get(identifier.text());
         if let Some(bind) = bind {
             self.resolution.insert(identifier.offset(), *bind);
@@ -153,7 +153,7 @@ impl Resolver {
         }
     }
 
-    fn push_unbound(&mut self, identifier: Identifier) {
+    fn push_unbound(&mut self, identifier: &Identifier) {
         let map = self.unbound.last_mut().unwrap();
         let vec = map.entry(identifier.text().to_owned()).or_default();
         vec.push(identifier.offset());

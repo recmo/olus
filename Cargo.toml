@@ -1,8 +1,14 @@
 [package]
 name = "olus"
 version = "0.1.0"
+description = "Experimental/toy programming language"
+keywords = ["olus", "compiler"]
+categories = ["compilers"]
+repository = "https://github.com/recmo/olus"
 edition = "2021"
 default-run = "olus"
+license = "MIT"
+license_file = "mit-license.md"
 
 [dependencies]
 ariadne = "0.1.5"

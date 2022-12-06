@@ -28,7 +28,7 @@ pub struct Span {
 
 impl Files {
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self { files: Vec::new() }
     }
 
@@ -38,6 +38,12 @@ impl Files {
         let id = self.files.len();
         self.files.push(File::new(path)?);
         Ok(FileId(id))
+    }
+}
+
+impl Default for Files {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -62,7 +68,7 @@ impl ariadne::Cache<FileId> for &Files {
 
 impl FileId {
     #[must_use]
-    pub fn span(&self, range: Range<usize>) -> Span {
+    pub const fn span(&self, range: Range<usize>) -> Span {
         Span {
             file:  *self,
             start: range.start,
@@ -93,12 +99,12 @@ impl File {
 
 impl Span {
     #[must_use]
-    pub fn file(&self) -> FileId {
+    pub const fn file(&self) -> FileId {
         self.file
     }
 
     #[must_use]
-    pub fn range(&self) -> Range<usize> {
+    pub const fn range(&self) -> Range<usize> {
         self.start..self.end
     }
 
