@@ -2,7 +2,7 @@ use olus::Files;
 use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    std::env::set_var("RUST_BACKTRACE", "full");
+    // std::env::set_var("RUST_BACKTRACE", "full");
     let path = PathBuf::from("./examples/test.olus");
 
     let mut files = Files::new();

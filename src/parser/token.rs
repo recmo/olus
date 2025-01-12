@@ -24,24 +24,21 @@ pub enum Token {
     // Identifiers and symbols
     // See <https://www.unicode.org/reports/tr31>
     // See <https://util.unicode.org/UnicodeJsps/list-unicodeset.jsp?a=[:Pattern_Syntax=Yes:]>
-    #[regex(r"\p{XID_Start}\p{XID_Continue}*|\p{Pattern_Syntax}")]
+    #[regex(r"\p{XID_Start}\p{XID_Continue}*|\p{Pattern_Syntax}", priority = 0)]
     Identifier,
 
+    // Strings are delimited by mirrored assymetric double qoutes: “ and ”
     #[token("“", string)]
     String,
 
     #[regex(r"[0-9]+")]
     // TODO: https://github.com/maciejhirsz/logos/issues/133#issuecomment-687281059
     Number,
-
-    #[token("”")]
-    #[error]
-    Error,
 }
 
 impl Default for Token {
     fn default() -> Self {
-        Self::Error
+        Token::Whitespace
     }
 }
 
@@ -53,13 +50,13 @@ fn string(lexer: &mut Lexer<Token>) -> bool {
         Open,
         #[token("”")]
         Close,
-        #[regex(r"[^“”]+")]
-        #[error]
+        #[regex(".+")]
         Other,
     }
     let mut inner = Lexer::<Token>::new(lexer.remainder());
     let mut nesting = 1;
     while let Some(token) = inner.next() {
+        let token = token.unwrap();
         match token {
             Token::Open => nesting += 1,
             Token::Close => {
@@ -83,7 +80,7 @@ mod test {
     fn test_string() {
         let source = "“Hello, “nested” world!”";
         let mut lexer = Lexer::<Token>::new(source);
-        assert_eq!(lexer.next(), Some(Token::String));
+        assert_eq!(lexer.next(), Some(Ok(Token::String)));
         assert_eq!(lexer.span(), 0..32);
         assert_eq!(lexer.remainder(), "");
     }

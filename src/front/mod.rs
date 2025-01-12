@@ -226,7 +226,6 @@ impl<'a> Parser<'a> {
                     for id in def.procedure().identifiers() {
                         procedure.push(self.lookup_binder(&id).unwrap());
                     }
-                    dbg!(def.syntax().text());
                     let mut call = def
                         .call()
                         .unwrap()

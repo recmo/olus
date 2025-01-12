@@ -5,19 +5,17 @@ description = "Experimental/toy programming language"
 keywords = ["olus", "compiler"]
 categories = ["compilers"]
 repository = "https://github.com/recmo/olus"
-edition = "2021"
+edition = "2024"
 default-run = "olus"
 license = "MIT"
 license_file = "mit-license.md"
 
 [dependencies]
-ariadne = "0.1.5"
-logos = "0.12.1"
-rowan = "0.15.10"
-strum = { version = "0.24.1", features = ["derive"] }
-tokio = { version = "1.22.0", features = ["full"] }
-tower-lsp = "0.17.0"
-yansi = "0.5.1"
+ariadne = "0.5.0"
+logos = "0.15.0"
+rowan = "0.16.1"
+strum = { version = "0.26.3", features = ["derive"] }
+yansi = "1.0.1"
 
 # Compilation profile for any non-workspace member.
 # Dependencies are optimized, even in a dev build. This improves dev performance
@@ -30,8 +28,13 @@ opt-level = 3
 debug = true
 
 [dev-dependencies]
-indoc = "1.0.7"
+indoc = "2.0.5"
 
 [package.metadata.docs.rs]
-rustdoc-args = ["--cfg", "has_cfg_doc", "--html-in-header", ".cargo/katex-header.html"]
+rustdoc-args = [
+    "--cfg",
+    "has_cfg_doc",
+    "--html-in-header",
+    ".cargo/katex-header.html",
+]
 all-features = true

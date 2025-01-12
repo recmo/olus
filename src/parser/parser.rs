@@ -18,7 +18,7 @@ pub(super) struct Parser<'source> {
 impl<'source> Parser<'source> {
     pub(super) fn new(file_id: FileId, text: &'source str) -> Self {
         let mut lexer = Lexer::new(text);
-        let peek = lexer.next();
+        let peek = lexer.next().transpose().unwrap();
         Self {
             file_id,
             lexer,
@@ -129,10 +129,6 @@ impl<'source> Parser<'source> {
                     self.error("unexpected closing parenthesis");
                     self.bump();
                 }
-                Some(Token::Error) => {
-                    self.error("unexpected character");
-                    self.bump();
-                }
             }
         }
     }
@@ -168,10 +164,6 @@ impl<'source> Parser<'source> {
                     self.error("unexpected closing parenthesis");
                     self.bump();
                 }
-                Some(Token::Error) => {
-                    self.error("unexpected character");
-                    self.bump();
-                }
             }
         }
         count
@@ -197,7 +189,7 @@ impl<'source> Parser<'source> {
         };
         self.builder
             .token(SyntaxKind::Token(token).into(), self.lexer.slice());
-        self.peek = self.lexer.next();
+        self.peek = self.lexer.next().transpose().unwrap();
     }
 
     /// The span of the current token.

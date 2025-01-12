@@ -8,6 +8,8 @@ pub enum SyntaxKind {
     // Re-use lexer tokens
     Token(Token),
 
+    Error, // An error node
+
     // Composite nodes
     Root,  // The root of the syntax tree
     Def,   // A line defining a procedure
@@ -38,7 +40,7 @@ impl rowan::Language for Language {
         if raw < Token::COUNT {
             SyntaxKind::Token(Token::from_repr(raw).unwrap())
         } else {
-            SyntaxKind::from_repr(raw - Token::COUNT).unwrap_or(SyntaxKind::Token(Token::Error))
+            SyntaxKind::from_repr(raw - Token::COUNT).unwrap_or(SyntaxKind::Error)
         }
     }
 

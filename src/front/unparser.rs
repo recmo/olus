@@ -4,6 +4,7 @@ use crate::{
 };
 use ariadne::{Color, ColorGenerator, Fmt};
 use std::io::{Error, Write};
+use yansi::Paint;
 
 pub fn unparse<W: Write>(
     writer: &mut W,
@@ -39,7 +40,8 @@ struct Unparser<'a, W: Write> {
 
 impl<'a, W: Write> Unparser<'a, W> {
     fn unparse_root(&mut self) -> Result<(), Error> {
-        for line in self.root.lines() {
+        let lines = self.root.lines().collect::<Vec<_>>();
+        for line in lines {
             self.unparse_line(&line)?;
             writeln!(self.writer)?;
         }
@@ -103,16 +105,14 @@ impl<'a, W: Write> Unparser<'a, W> {
             .resolution
             .and_then(|resolution| resolution.lookup(identifier, &self.root));
 
-        let color = Color::Black;
-
         let unbound = reference.is_none();
         let binds = Some(identifier) == reference.as_ref();
         if unbound {
-            write!(self.writer, "{}", Color::Red.paint(identifier.text()))
+            write!(self.writer, "{}", identifier.text().red())
         } else if binds {
-            write!(self.writer, "{}", color.paint(identifier.text()).bold())
+            write!(self.writer, "{}", identifier.text().bold())
         } else {
-            write!(self.writer, "{}", color.paint(identifier.text()))
+            write!(self.writer, "{}", identifier.text())
         }
     }
 

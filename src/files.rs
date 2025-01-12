@@ -56,6 +56,8 @@ impl Index<FileId> for Files {
 }
 
 impl ariadne::Cache<FileId> for &Files {
+    type Storage = String;
+
     fn fetch(&mut self, id: &FileId) -> Result<&Source, Box<dyn std::fmt::Debug + '_>> {
         Ok(&self[*id].source)
     }
@@ -80,7 +82,7 @@ impl FileId {
 impl File {
     fn new(path: PathBuf) -> io::Result<Self> {
         let contents = read_to_string(&path)?;
-        let source = Source::from(&contents);
+        let source = Source::from(contents.clone());
         Ok(Self {
             path,
             contents,
@@ -114,8 +116,8 @@ impl Span {
     }
 
     #[must_use]
-    pub fn report(&self, kind: ReportKind) -> ReportBuilder<Self> {
-        Report::build(kind, self.file, self.range().start)
+    pub fn report<'a>(&self, kind: ReportKind<'a>) -> ReportBuilder<'a, Self> {
+        Report::build(kind, *self)
     }
 }
 

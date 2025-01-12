@@ -1,6 +1,6 @@
-use super::{syntax_kind::SyntaxKind, token::Token, Language};
+use super::{Language, syntax_kind::SyntaxKind, token::Token};
 use crate::{FileId, Span};
-use rowan::{ast::AstNode, NodeOrToken};
+use rowan::{NodeOrToken, ast::AstNode};
 
 pub type SyntaxNode = rowan::SyntaxNode<Language>;
 pub type SyntaxToken = rowan::SyntaxToken<Language>;
@@ -171,7 +171,7 @@ impl Root {
         self.syntax().children().filter_map(Line::cast)
     }
 
-    pub fn defs(&self) -> impl Iterator<Item = Def> {
+    pub fn defs(&self) -> impl Iterator<Item = Def> + use<> {
         self.syntax().children().filter_map(Def::cast)
     }
 
@@ -227,7 +227,6 @@ impl Def {
         }
 
         // Try next line in containing block
-        dbg!(self.line().syntax().text());
         self.line().syntax().next_sibling().and_then(Call::cast)
     }
 }
