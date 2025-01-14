@@ -1,10 +1,33 @@
-use super::{Language, syntax_kind::SyntaxKind, token::Token};
-use crate::{FileId, Span};
-use rowan::{NodeOrToken, ast::AstNode};
+use {
+    super::Node,
+    crate::{FileId, Span},
+    rowan::{NodeOrToken, ast::AstNode},
+};
 
 pub type SyntaxNode = rowan::SyntaxNode<Language>;
 pub type SyntaxToken = rowan::SyntaxToken<Language>;
 pub type SyntaxElement = rowan::NodeOrToken<SyntaxNode, SyntaxToken>;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Language;
+
+impl From<Node> for rowan::SyntaxKind {
+    fn from(value: Node) -> Self {
+        Self(value.into())
+    }
+}
+
+impl rowan::Language for Language {
+    type Kind = Node;
+
+    fn kind_from_raw(raw: rowan::SyntaxKind) -> Self::Kind {
+        raw.0.try_into().expect("Invalid SyntaxKind.")
+    }
+
+    fn kind_to_raw(kind: Self::Kind) -> rowan::SyntaxKind {
+        kind.into()
+    }
+}
 
 macro_rules! ast_node {
     ($ast:ident, $kind:ident) => {
@@ -22,8 +45,8 @@ macro_rules! ast_node {
         impl AstNode for $ast {
             type Language = Language;
 
-            fn can_cast(kind: SyntaxKind) -> bool {
-                kind == SyntaxKind::$kind
+            fn can_cast(kind: Node) -> bool {
+                kind == Node::$kind
             }
 
             fn cast(node: SyntaxNode) -> Option<Self> {
@@ -59,8 +82,8 @@ macro_rules! ast_token {
             }
 
             #[must_use]
-            pub fn can_cast(kind: SyntaxKind) -> bool {
-                kind == SyntaxKind::Token(Token::$kind)
+            pub fn can_cast(kind: Node) -> bool {
+                kind == Node::$kind
             }
 
             #[must_use]
@@ -105,8 +128,8 @@ impl AstNode for Line {
 
     fn cast(node: SyntaxNode) -> Option<Self> {
         match node.kind() {
-            SyntaxKind::Def => Def::cast(node).map(Line::Def),
-            SyntaxKind::Call => Call::cast(node).map(Line::Call),
+            Node::Def => Def::cast(node).map(Line::Def),
+            Node::Call => Call::cast(node).map(Line::Call),
             _ => None,
         }
     }
@@ -154,7 +177,7 @@ pub enum Argument {
 }
 
 impl Argument {
-    fn can_cast(kind: SyntaxKind) -> bool {
+    fn can_cast(kind: Node) -> bool {
         Identifier::can_cast(kind) || Group::can_cast(kind)
     }
 
@@ -267,14 +290,10 @@ impl Call {
             .children_with_tokens()
             .filter_map(|node| match node {
                 NodeOrToken::Node(node) => Group::cast(node).map(Argument::Group),
-                NodeOrToken::Token(token) => match token.kind() {
-                    SyntaxKind::Token(Token::Identifier) => {
-                        Identifier::cast(token).map(Argument::Identifier)
-                    }
-                    SyntaxKind::Token(Token::String) => String::cast(token).map(Argument::String),
-                    SyntaxKind::Token(Token::Number) => Number::cast(token).map(Argument::Number),
-                    _ => None,
-                },
+                Node::Identifier => Identifier::cast(token).map(Argument::Identifier),
+                Node::String => String::cast(token).map(Argument::String),
+                Node::Number => Number::cast(token).map(Argument::Number),
+                _ => None,
             })
     }
 }

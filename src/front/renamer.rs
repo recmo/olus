@@ -1,7 +1,5 @@
 //! Gives every variable a globally unique name.
-use super::Resolution;
-use crate::parser::syntax::Identifier;
-use std::collections::HashMap;
+use {super::Resolution, crate::parser::syntax::Identifier, std::collections::HashMap};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Naming(HashMap<Identifier, String>);

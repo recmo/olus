@@ -2,18 +2,19 @@ mod name_resolution;
 mod renamer;
 mod unparser;
 
-use crate::{
-    files::{FileId, Files},
-    parser::syntax::{Argument, Identifier, Line, Root},
-};
-use ariadne::{Color, Label, Report, ReportKind, Source};
-use rowan::ast::AstNode;
-use std::{
-    fmt::{Display, Write},
-    ops::Range,
-};
-
 pub use self::{name_resolution::Resolution, renamer::Naming, unparser::unparse};
+use {
+    crate::{
+        files::{FileId, Files},
+        parser::syntax::{Argument, Identifier, Line, Root},
+    },
+    ariadne::{Color, Label, Report, ReportKind, Source},
+    rowan::ast::AstNode,
+    std::{
+        fmt::{Display, Write},
+        ops::Range,
+    },
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Sugared<'a> {

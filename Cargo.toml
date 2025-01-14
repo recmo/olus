@@ -10,16 +10,37 @@ default-run = "olus"
 license = "MIT"
 license_file = "mit-license.md"
 
+[lints.rust]
+unsafe_code = "warn"
+# missing_docs = "warn"
+
+[lints.clippy]
+all = "warn"
+pendatic = "warn"
+nursery = "warn"
+cargo = "warn"
+perf = "warn"
+complexity = "warn"
+style = "warn"
+correctness = "warn"
+suspicous = "warn"
+# missing_docs_in_private_items = { level = "allow", priority = 1 }
+
 [dependencies]
+chumsky = { version = "1.0.0-alpha.7", git = "https://github.com/zesterer/chumsky", rev = "282bf5e", default-features = false, features = [
+    "nightly",
+    "extension",
+] }
 ariadne = "0.5.0"
 logos = "0.15.0"
-rowan = "0.16.1"
-strum = { version = "0.26.3", features = ["derive"] }
 yansi = "1.0.1"
+cstree = "0.12.2"
+num_enum = "0.7.3"
 
-# Compilation profile for any non-workspace member.
-# Dependencies are optimized, even in a dev build. This improves dev performance
-# while having neglible impact on incremental build times.
+[dev-dependencies]
+indoc = "2.0.5"
+
+# Compilation profile for any non-workspace member. We want to optimize these even in debug mode.
 [profile.dev.package."*"]
 opt-level = 3
 
@@ -27,9 +48,7 @@ opt-level = 3
 [profile.release]
 debug = true
 
-[dev-dependencies]
-indoc = "2.0.5"
-
+# Allow Katex in docs
 [package.metadata.docs.rs]
 rustdoc-args = [
     "--cfg",

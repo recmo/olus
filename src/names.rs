@@ -1,6 +1,8 @@
-use crate::files::{FileId, Span};
-use ariadne::Label;
-use std::ops::{Index, Range};
+use {
+    crate::files::{FileId, Span},
+    ariadne::Label,
+    std::ops::{Index, Range},
+};
 
 pub struct Names {
     binders: Vec<Binder>,

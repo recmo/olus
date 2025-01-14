@@ -1,10 +1,12 @@
-use crate::{
-    front::Resolution,
-    parser::syntax::{Argument, Block, Call, Def, Identifier, Line, Proc, Root},
+use {
+    crate::{
+        front::Resolution,
+        parser::syntax::{Argument, Block, Call, Def, Identifier, Line, Proc, Root},
+    },
+    ariadne::{Color, ColorGenerator, Fmt},
+    std::io::{Error, Write},
+    yansi::Paint,
 };
-use ariadne::{Color, ColorGenerator, Fmt};
-use std::io::{Error, Write};
-use yansi::Paint;
 
 pub fn unparse<W: Write>(
     writer: &mut W,

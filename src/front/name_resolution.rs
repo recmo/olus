@@ -1,9 +1,11 @@
-use crate::parser::syntax::{Argument, Call, Def, Group, Identifier, Line, Root};
-use rowan::{
-    ast::{AstNode, AstPtr, SyntaxNodePtr},
-    TextRange,
+use {
+    crate::parser::syntax::{Argument, Call, Def, Group, Identifier, Line, Root},
+    rowan::{
+        TextRange,
+        ast::{AstNode, AstPtr, SyntaxNodePtr},
+    },
+    std::{collections::HashMap, mem::size_of},
 };
-use std::{collections::HashMap, mem::size_of};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Resolution {

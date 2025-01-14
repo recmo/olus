@@ -1,9 +1,11 @@
-use ariadne::{Label, Report, ReportBuilder, ReportKind, Source};
-use std::{
-    fs::read_to_string,
-    io,
-    ops::{Index, Range},
-    path::{Path, PathBuf},
+use {
+    ariadne::{Label, Report, ReportBuilder, ReportKind, Source},
+    std::{
+        fs::read_to_string,
+        io,
+        ops::{Index, Range},
+        path::{Path, PathBuf},
+    },
 };
 
 pub struct Files {

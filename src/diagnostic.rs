@@ -1,6 +1,7 @@
-use ariadne::{Color, Report, ReportKind};
-
-use crate::Span;
+use {
+    crate::Span,
+    ariadne::{Color, Report, ReportKind},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Diagnostic {

@@ -1,206 +1,212 @@
-use super::{Parse, SyntaxKind, Token};
-use crate::{Diagnostic, FileId, Span};
-use logos::Lexer;
-use rowan::GreenNodeBuilder;
-use std::ops::Range;
+//! Ties Logos, Chomsky and CSTree together in a parser.
+//! See <https://github.com/spreadsheet-lang/spreadsheet/blob/main/lang/src/parser.rs>
+use {
+    super::{Lexer, Node, Span},
+    ariadne::{Color, Label, Report, ReportKind, Source},
+    chumsky::{
+        extension::v1::{Ext, ExtParser},
+        input::{BoxedStream, Cursor, InputRef, MapExtra, MappedInput, Stream, ValueInput},
+        inspector::Inspector,
+        prelude::*,
+    },
+    core::marker::PhantomData,
+    cstree::{
+        build::{Checkpoint, GreenNodeBuilder},
+        green::GreenNode,
+    },
+};
 
-const INDENT_SIZE: usize = 4;
+// Type and trait aliases for the Chumsky parser to make things more concrete.
+type CstError<'s> = Rich<'s, Node>;
+type CstExtra<'s, 'c> = extra::Full<CstError<'s>, CstState<'c>, ()>;
+type CstInput<'s> = MappedInput<Node, Span, Stream<Lexer<'s>>, fn((Node, Span)) -> (Node, Span)>;
+type CstMapExtra<'s, 'c, 'a> = MapExtra<'s, 'a, CstInput<'s>, CstExtra<'s, 'c>>;
+type CstCursor<'s, 'a> = Cursor<'s, 'a, CstInput<'s>>;
+type CstCheckpoint<'s, 'a> = chumsky::input::Checkpoint<'s, 'a, CstInput<'s>, Checkpoint>;
 
-pub(super) struct Parser<'source> {
-    file_id: FileId,
-    lexer:   Lexer<'source, Token>,
-    peek:    Option<Token>,
-    indent:  usize,
-    builder: GreenNodeBuilder<'static>,
-    errors:  Vec<Diagnostic>,
+trait CstParser<'s, 'c: 's, Output = ()>: Parser<'s, CstInput<'s>, Output, CstExtra<'s, 'c>> {}
+impl<'s, 'c: 's, O, P: Parser<'s, CstInput<'s>, O, CstExtra<'s, 'c>>> CstParser<'s, 'c, O> for P {}
+
+/// Parser state containing CST builder.
+struct CstState<'c> {
+    builder: GreenNodeBuilder<'c, 'c, Node>,
 }
 
-impl<'source> Parser<'source> {
-    pub(super) fn new(file_id: FileId, text: &'source str) -> Self {
-        let mut lexer = Lexer::new(text);
-        let peek = lexer.next().transpose().unwrap();
-        Self {
-            file_id,
-            lexer,
-            peek,
-            indent: 0,
-            builder: GreenNodeBuilder::new(),
-            errors: Vec::new(),
-        }
+#[derive(Clone, Copy)]
+struct CstLeafExt<'s, 'c: 's, P: CstParser<'s, 'c, Node>> {
+    parser:   P,
+    _phantom: PhantomData<(&'s (), &'c ())>,
+}
+
+#[derive(Clone, Copy)]
+struct CstNodeExt<'s, 'c: 's, P: CstParser<'s, 'c>> {
+    node:     Node,
+    parser:   P,
+    _phantom: PhantomData<(&'s (), &'c ())>,
+}
+
+/// Inspector for the Chumsky parser to build the CST.
+impl<'s, 'c: 's> Inspector<'s, CstInput<'s>> for CstState<'c> {
+    type Checkpoint = Checkpoint;
+
+    fn on_token(&mut self, token: &Node) {}
+
+    fn on_save<'parse>(&self, cursor: &CstCursor<'s, 'parse>) -> Checkpoint {
+        self.builder.checkpoint()
     }
 
-    pub(super) fn finish(self) -> Parse {
-        Parse {
-            green_node: self.builder.finish(),
-            errors:     self.errors,
-        }
+    fn on_rewind<'parse>(&mut self, marker: &CstCheckpoint<'s, 'parse>) {
+        self.builder.revert_to(*marker.inspector());
     }
+}
 
-    pub(super) fn parse_root(&mut self) {
-        self.builder.start_node(SyntaxKind::Root.into());
-        while self.peek.is_some() {
-            self.parse_indentation();
-            self.parse_def(false);
-        }
-        self.parse_indentation();
-        self.builder.finish_node();
+impl<'s, 'c: 's, P: CstParser<'s, 'c, Node>> ExtParser<'s, CstInput<'s>, (), CstExtra<'s, 'c>>
+    for CstLeafExt<'s, 'c, P>
+{
+    fn parse<'parse>(
+        &self,
+        inp: &mut InputRef<'s, 'parse, CstInput<'s>, CstExtra<'s, 'c>>,
+    ) -> Result<(), CstError<'s>> {
+        let node = inp.parse(&self.parser)?;
+        eprintln!("token {:?}", node);
+        inp.state().builder.token(node, "KK");
+        Ok(())
     }
+}
 
-    fn parse_indentation(&mut self) {
-        let indent = if self.peek == Some(Token::Whitespace) {
-            let slice = self.lexer.slice();
-            if slice.len() % INDENT_SIZE != 0 || !slice.chars().all(|c| c == ' ') {
-                self.error("Indentation must be a multiple of 4 spaces");
+impl<'s, 'c: 's, P: CstParser<'s, 'c>> ExtParser<'s, CstInput<'s>, (), CstExtra<'s, 'c>>
+    for CstNodeExt<'s, 'c, P>
+{
+    fn parse<'parse>(
+        &self,
+        inp: &mut InputRef<'s, 'parse, CstInput<'s>, CstExtra<'s, 'c>>,
+    ) -> Result<(), CstError<'s>> {
+        let checkpoint = inp.state().builder.checkpoint();
+        eprintln!("node start {:?} {checkpoint:?}", self.node);
+        inp.parse(&self.parser)?;
+        let mut builder = &mut inp.state().builder;
+        builder.start_node_at(checkpoint, self.node);
+        builder.finish_node();
+        eprintln!("node finish {:?} {checkpoint:?}", self.node);
+        Ok(())
+    }
+}
+
+trait ParserExt<'s, 'c: 's>: CstParser<'s, 'c> + Sized {
+    fn node(self, node: Node) -> Ext<CstNodeExt<'s, 'c, Self>> {
+        Ext(CstNodeExt {
+            node,
+            parser: self,
+            _phantom: PhantomData,
+        })
+    }
+}
+
+impl<'s, 'c: 's, P: CstParser<'s, 'c>> ParserExt<'s, 'c> for P {}
+
+fn leaf<'s, 'c: 's>(node: Node) -> impl CstParser<'s, 'c> + Clone {
+    Ext(CstLeafExt {
+        parser:   just(node),
+        _phantom: PhantomData,
+    })
+}
+
+fn leaf_to<'s, 'c: 's>(node: Node, to: Node) -> impl CstParser<'s, 'c> {
+    Ext(CstLeafExt {
+        parser:   just(node).to(to),
+        _phantom: PhantomData,
+    })
+}
+
+/// Chumsky grammar for the Olus language.
+fn parser<'source, 'cache: 'source>() -> impl CstParser<'source, 'cache> {
+    let whitespace = leaf(Node::Whitespace);
+    let newline = leaf(Node::Newline);
+    let identifier = leaf(Node::Identifier);
+
+    let atom = choice((
+        leaf(Node::Identifier),
+        leaf(Node::Number),
+        leaf(Node::String),
+    ));
+
+    let expression = recursive(|expression| {
+        let call = expression
+            .clone()
+            .separated_by(leaf(Node::Whitespace))
+            .delimited_by(leaf(Node::ParenOpen), leaf(Node::ParenClose))
+            .node(Node::Call);
+
+        let procedure = leaf(Node::Identifier)
+            .separated_by(leaf(Node::Whitespace))
+            .then_ignore(leaf(Node::Colon).padded_by(leaf(Node::Whitespace).or_not()))
+            .then_ignore(expression.separated_by(leaf(Node::Whitespace)))
+            .delimited_by(leaf(Node::ParenOpen), leaf(Node::ParenClose))
+            .node(Node::Proc);
+
+        choice((atom.clone(), call, procedure))
+    });
+
+    // let call = expression.separated_by(just(Node::Whitespace)).ignored();
+
+    // let procedure = just(Node::Identifier)
+    //     .separated_by(just(Node::Whitespace))
+    //     .then(just(Node::Colon).padded_by(just(Node::Whitespace).or_not()))
+    //     .then(call.clone().or_not())
+    //     .ignored();
+
+    // let statement = procedure.or(call).then(just(Node::Newline)).ignored();
+
+    // let block = recursive(|block| {
+    //     choice((
+    //         statement,
+    //         block.delimited_by(just(Node::Indent), just(Node::Dedent)),
+    //     ))
+    //     .repeated()
+    //     .ignored()
+    // });
+
+    expression
+        .separated_by(whitespace)
+        .then_ignore(newline)
+        .node(Node::Block)
+}
+
+pub fn parse(source: &str) -> GreenNode {
+    // Construct a (token, span) stream from the lexer.
+    let lexer = Lexer::new(source);
+    let end_of_input = Span::splat(source.len());
+    let token_stream: CstInput = Stream::from_iter(lexer).map(end_of_input, |(t, s)| (t, s));
+
+    // Construct a builder to build the CST.
+    let mut state = CstState {
+        builder: GreenNodeBuilder::<Node>::new(),
+    };
+    state.builder.start_node(Node::Root);
+
+    let result = parser()
+        .parse_with_state(token_stream, &mut state)
+        .into_result();
+    match result {
+        Ok(_) => {}
+        Err(errs) => {
+            for err in errs {
+                Report::build(ReportKind::Error, err.span().into_range())
+                    .with_code(3)
+                    .with_message(err.to_string())
+                    .with_label(
+                        Label::new(err.span().into_range())
+                            .with_message(err.reason().to_string())
+                            .with_color(Color::Red),
+                    )
+                    .finish()
+                    .eprint(Source::from(source))
+                    .unwrap();
             }
-            slice.len() / INDENT_SIZE
-        } else {
-            0
-        };
-
-        if indent > self.indent {
-            if indent != self.indent + 1 {
-                self.error("Indentation must increase by 4 spaces at a time");
-            }
-            while indent > self.indent {
-                self.builder.start_node(SyntaxKind::Block.into());
-                self.indent += 1;
-            }
-        }
-        if self.peek == Some(Token::Whitespace) {
-            self.bump();
-        }
-        if indent < self.indent {
-            while indent < self.indent {
-                self.builder.finish_node();
-                self.indent -= 1;
-            }
         }
     }
 
-    fn parse_def(&mut self, in_group: bool) {
-        let checkpoint = self.builder.checkpoint();
-
-        let is_proc = self.try_bump_params(in_group);
-        if !is_proc {
-            self.builder
-                .start_node_at(checkpoint, SyntaxKind::Call.into());
-            self.bump_arguments(in_group);
-            self.builder.finish_node();
-            return;
-        }
-
-        self.builder
-            .start_node_at(checkpoint, SyntaxKind::Def.into());
-
-        self.builder
-            .start_node_at(checkpoint, SyntaxKind::Proc.into());
-        self.builder.finish_node();
-        assert_eq!(self.peek, Some(Token::Colon));
-        self.bump();
-
-        // Parse arguments (if any)
-        let checkpoint = self.builder.checkpoint();
-        let count = self.bump_arguments(in_group);
-        if count > 0 {
-            self.builder
-                .start_node_at(checkpoint, SyntaxKind::Call.into());
-            self.builder.finish_node();
-        }
-        self.builder.finish_node();
-    }
-
-    fn try_bump_params(&mut self, in_group: bool) -> bool {
-        loop {
-            match self.peek {
-                Some(Token::Identifier | Token::Whitespace) => self.bump(),
-                Some(Token::Colon) => return true,
-                Some(Token::String | Token::Number | Token::ParenOpen) => return false,
-                Some(Token::Newline) | None if !in_group => {
-                    return false;
-                }
-                Some(Token::ParenClose) if in_group => {
-                    return false;
-                }
-                Some(Token::Newline) | None => {
-                    self.error("unexpected newline");
-                    return false;
-                }
-                Some(Token::ParenClose) => {
-                    self.error("unexpected closing parenthesis");
-                    self.bump();
-                }
-            }
-        }
-    }
-
-    fn bump_arguments(&mut self, in_group: bool) -> usize {
-        let mut count = 0;
-        loop {
-            match self.peek {
-                Some(Token::ParenOpen) => {
-                    count += 1;
-                    self.parse_group();
-                }
-                Some(Token::Identifier | Token::String | Token::Number | Token::Whitespace) => {
-                    count += 1;
-                    self.bump();
-                }
-                Some(Token::Newline) | None if !in_group => {
-                    self.bump();
-                    break;
-                }
-                Some(Token::ParenClose) if in_group => {
-                    break;
-                }
-                Some(Token::Newline) | None => {
-                    self.error("unexpected end of line");
-                    break;
-                }
-                Some(Token::Colon) => {
-                    self.error("Definition cannot contain more than one colon");
-                    self.bump();
-                }
-                Some(Token::ParenClose) => {
-                    self.error("unexpected closing parenthesis");
-                    self.bump();
-                }
-            }
-        }
-        count
-    }
-
-    fn parse_group(&mut self) {
-        self.builder.start_node(SyntaxKind::Group.into());
-        assert_eq!(self.peek, Some(Token::ParenOpen));
-        self.bump();
-
-        self.parse_def(true);
-
-        // Note: This can also be EOF or newline if there is a parse error
-        // assert_eq!(self.peek, Some(Token::ParenClose));
-        self.bump();
-
-        self.builder.finish_node();
-    }
-
-    fn bump(&mut self) {
-        let Some(token) = self.peek else {
-            panic!();
-        };
-        self.builder
-            .token(SyntaxKind::Token(token).into(), self.lexer.slice());
-        self.peek = self.lexer.next().transpose().unwrap();
-    }
-
-    /// The span of the current token.
-    fn span(&self) -> Span {
-        self.file_id.span(self.lexer.span())
-    }
-
-    fn error<S: Into<String>>(&mut self, message: S) {
-        self.errors.push(Diagnostic {
-            message: message.into(),
-            span:    self.span(),
-        });
-    }
+    state.builder.finish_node();
+    let (root, node_cache) = state.builder.finish();
+    root
 }
