@@ -148,14 +148,13 @@ induct:      [n, ret]
 * Basic interpreter.
 * Determine closures.
 * k-CFA.
-  http://janmidtgaard.dk/papers/Midtgaard-CSur-final.pdf
-  https://matt.might.net/articles/implementation-of-kcfa-and-0cfa/
+  <http://janmidtgaard.dk/papers/Midtgaard-CSur-final.pdf>
+  <https://matt.might.net/articles/implementation-of-kcfa-and-0cfa/>
 * Full type checking.
 
 
 ## References
 
-* http://www.club.cc.cmu.edu/~ajo/disseminate/STAN-CS-76-562_EarlyDevelPgmgLang_Aug76.pdf
-https://cs.au.dk/~amoeller/spa/
-
-https://github.com/Kixiron/rust-langdev
+* <http://www.club.cc.cmu.edu/~ajo/disseminate/STAN-CS-76-562_EarlyDevelPgmgLang_Aug76.pdf>
+* <https://cs.au.dk/~amoeller/spa/>
+* <https://github.com/Kixiron/rust-langdev>

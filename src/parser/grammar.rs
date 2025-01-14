@@ -34,28 +34,27 @@ pub(super) fn parser<'source, 'cache: 'source>() -> impl CstParser<'source, 'cac
         choice((atom, call, procedure))
     });
 
-    // let call = expression.separated_by(just(Node::Whitespace)).ignored();
-
-    // let procedure = just(Node::Identifier)
-    //     .separated_by(just(Node::Whitespace))
-    //     .then(just(Node::Colon).padded_by(just(Node::Whitespace).or_not()))
-    //     .then(call.clone().or_not())
-    //     .ignored();
-
-    // let statement = procedure.or(call).then(just(Node::Newline)).ignored();
-
-    // let block = recursive(|block| {
-    //     choice((
-    //         statement,
-    //         block.delimited_by(just(Node::Indent), just(Node::Dedent)),
-    //     ))
-    //     .repeated()
-    //     .ignored()
-    // });
-
-    expression
-        .then_ignore(token(Whitespace).or_not())
-        .repeated()
+    let call = expression
+        .separated_by(token(Whitespace))
+        .at_least(1)
         .then_ignore(token(Newline))
-        .node(Node::Block)
+        .node(Call);
+
+    let procedure = token(Identifier)
+        .separated_by(token(Whitespace))
+        .at_least(1)
+        .then_ignore(token(Colon).padded_by(token(Whitespace).or_not()))
+        .then_ignore(call.clone().or(token(Newline)))
+        .node(Proc);
+
+    let block = recursive(|block| {
+        choice((
+            procedure,
+            call,
+            block.delimited_by(token(Indent), token(Dedent)).node(Block),
+        ))
+        .repeated()
+    });
+
+    block
 }

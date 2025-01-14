@@ -1,4 +1,4 @@
-//! Ties Logos, Chumsky and CS-Tree together in a parser.
+//! Ties [logos], [chumsky] and [cstree] together in a parser.
 //! See <https://github.com/spreadsheet-lang/spreadsheet/blob/main/lang/src/parser.rs>
 use {
     super::{Lexer, Node, Span},
@@ -107,11 +107,13 @@ impl<'s, 'c: 's, P: CstParser<'s, 'c>> ExtParser<'s, CstInput<'s>, (), CstExtra<
         &self,
         inp: &mut InputRef<'s, 'parse, CstInput<'s>, CstExtra<'s, 'c>>,
     ) -> Result<(), CstError<'s>> {
+        // eprintln!("> {:?}", self.node);
         let checkpoint = inp.state().builder.checkpoint();
         inp.parse(&self.parser)?;
         let builder = &mut inp.state().builder;
         builder.start_node_at(checkpoint, self.node);
         builder.finish_node();
+        // eprintln!("< {:?}", self.node);
         Ok(())
     }
 }

@@ -1,6 +1,5 @@
 #![doc = include_str!("../Readme.md")]
 #![doc(issue_tracker_base_url = "https://github.com/recmo/olus/issues/")]
-#![allow(unused, clippy::missing_errors_doc, clippy::missing_panics_doc)]
 
 mod diagnostic;
 mod files;

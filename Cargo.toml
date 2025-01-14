@@ -8,7 +8,6 @@ repository = "https://github.com/recmo/olus"
 edition = "2024"
 default-run = "olus"
 license = "MIT"
-license_file = "mit-license.md"
 
 [lints.rust]
 unsafe_code = "warn"
@@ -16,14 +15,14 @@ unsafe_code = "warn"
 
 [lints.clippy]
 all = "warn"
-pendatic = "warn"
+pedantic = "warn"
 nursery = "warn"
 cargo = "warn"
 perf = "warn"
 complexity = "warn"
 style = "warn"
 correctness = "warn"
-suspicous = "warn"
+suspicious = "warn"
 # missing_docs_in_private_items = { level = "allow", priority = 1 }
 
 [dependencies]

@@ -45,7 +45,8 @@ pub enum Node {
     Identifier,
 
     /// Strings litteral.
-    /// Strings are delimited by mirrored assymetric double qoutes: “ and ”
+    /// Strings are delimited by mirrored assymetric double qoutes: “ and ”.
+    /// Nested strings are recognized and considered a single string.
     #[token("“", string)]
     String,
 
@@ -84,13 +85,20 @@ pub enum Node {
     ErrorInvalidTokenKind,
 }
 
+impl Node {
+    #[must_use]
+    pub const fn is_trivia(&self) -> bool {
+        matches!(self, Self::Whitespace | Self::Newline)
+    }
+}
+
 impl Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{self:?}")
     }
 }
 
-/// Syntax definition for `CSTree`
+/// Syntax definition for [cstree]
 impl Syntax for Node {
     fn from_raw(raw: RawSyntaxKind) -> Self {
         u8::try_from(raw.0)
@@ -108,6 +116,7 @@ impl Syntax for Node {
             Self::Colon => ":",
             Self::ParenOpen => "(",
             Self::ParenClose => ")",
+            Self::Dedent => "",
             _ => {
                 return None;
             }
@@ -116,14 +125,7 @@ impl Syntax for Node {
     }
 }
 
-impl Node {
-    #[must_use]
-    pub const fn is_trivia(&self) -> bool {
-        matches!(self, Self::Whitespace | Self::Newline)
-    }
-}
-
-/// Matches a string literal by bumping the span.
+/// Matches a string literal.
 fn string(lexer: &mut logos::Lexer<Node>) -> Result<(), Option<Node>> {
     #[derive(Logos)]
     #[logos(skip "[^“”]+")]
