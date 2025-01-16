@@ -2,7 +2,7 @@ use {
     cstree::{syntax::ResolvedNode, util::NodeOrToken},
     olus::{
         Files,
-        parser::{Node, parse},
+        parser::{Node, ResolvedTokenExt, parse},
     },
     std::path::PathBuf,
 };
@@ -15,29 +15,44 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let source = files[file_id].contents();
     let root = parse(source);
 
-    pretty_print(&root, 0);
+    eprintln!("{root:#?}");
+
+    pretty_print(&root, 1);
 
     Ok(())
 }
 
 fn pretty_print(node: &ResolvedNode<Node>, indent_level: usize) {
     let indent = "  ".repeat(indent_level);
-    println!("{:?}\t{indent}{:?}", node.text_range(), node.kind());
+    println!(
+        "{:>4}..{:<4}{indent}{:?}",
+        usize::from(node.text_range().start()),
+        usize::from(node.text_range().end()),
+        node.kind()
+    );
 
-    // Recursively print non-trivia child nodes
+    // Recursively print syntax child nodes
     for child in node.children_with_tokens() {
-        if child.kind().is_trivia() {
+        if !child.kind().is_syntax() {
             continue;
         }
         match child {
             NodeOrToken::Node(node) => pretty_print(node, indent_level + 1),
             NodeOrToken::Token(token) => {
-                eprintln!(
-                    "{:?}\t{indent}  Token {:?}\t\t{:?}",
-                    token.text_range(),
+                eprint!(
+                    "{:>4}..{:<4}{indent}  {:?} {:?}",
+                    usize::from(token.text_range().start()),
+                    usize::from(token.text_range().end()),
                     token.kind(),
-                    token.text()
+                    token.text(),
                 );
+                if token.is_reference() {
+                    eprint!(" {:?}", token.resolve());
+                }
+                if token.is_binder() {
+                    eprint!(" BINDER");
+                }
+                eprintln!();
             }
         }
     }

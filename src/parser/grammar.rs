@@ -19,15 +19,22 @@ pub(super) fn parser<'source, 'cache: 'source>() -> impl CstParser<'source, 'cac
             .clone()
             .then_ignore(token(Whitespace).or_not())
             .repeated()
+            .at_least(1)
             .padded_by(token(Whitespace).or_not())
             .delimited_by(token(ParenOpen), token(ParenClose))
             .node(Call);
 
         let procedure = token(Identifier)
-            .separated_by(token(Whitespace))
+            .separated_by(token(Whitespace).or_not())
             .then_ignore(token(Colon).padded_by(token(Whitespace).or_not()))
-            .then_ignore(expression.separated_by(token(Whitespace)))
-            .padded_by(token(Whitespace).or_not())
+            .then_ignore(
+                expression
+                    .then_ignore(token(Whitespace).or_not())
+                    .repeated()
+                    .at_least(1)
+                    .node(Call)
+                    .or_not(),
+            )
             .delimited_by(token(ParenOpen), token(ParenClose))
             .node(Proc);
 
@@ -35,13 +42,13 @@ pub(super) fn parser<'source, 'cache: 'source>() -> impl CstParser<'source, 'cac
     });
 
     let call = expression
-        .separated_by(token(Whitespace))
+        .separated_by(token(Whitespace).or_not())
         .at_least(1)
         .then_ignore(token(Newline))
         .node(Call);
 
     let procedure = token(Identifier)
-        .separated_by(token(Whitespace))
+        .separated_by(token(Whitespace).or_not())
         .at_least(1)
         .then_ignore(token(Colon).padded_by(token(Whitespace).or_not()))
         .then_ignore(call.clone().or(token(Newline)))

@@ -1,325 +1,113 @@
+//! Extension trait for [`ResolvedToken`] to give the CST some AST like
+//! properties.
 use {
     super::Node,
-    crate::{FileId, Span},
-    rowan::{NodeOrToken, ast::AstNode},
+    cstree::{
+        syntax::{ResolvedElementRef, ResolvedNode, ResolvedToken},
+        util::NodeOrToken,
+    },
 };
 
-pub type SyntaxNode = rowan::SyntaxNode<Language>;
-pub type SyntaxToken = rowan::SyntaxToken<Language>;
-pub type SyntaxElement = rowan::NodeOrToken<SyntaxNode, SyntaxToken>;
+/// Extension to the [`ResolvedToken`] to give the CST some AST like properties.
+pub trait ResolvedTokenExt {
+    /// Check if the token is an identifier binder.
+    fn is_binder(&self) -> bool;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Language;
+    /// Check if the token is an identifier reference.
+    fn is_reference(&self) -> bool;
 
-impl From<Node> for rowan::SyntaxKind {
-    fn from(value: Node) -> Self {
-        Self(value.into())
-    }
+    /// Resolve the reference to a binder.
+    fn resolve(&self) -> Option<&ResolvedToken<Node>>;
 }
 
-impl rowan::Language for Language {
-    type Kind = Node;
-
-    fn kind_from_raw(raw: rowan::SyntaxKind) -> Self::Kind {
-        raw.0.try_into().expect("Invalid SyntaxKind.")
+impl ResolvedTokenExt for ResolvedToken<Node> {
+    fn is_binder(&self) -> bool {
+        self.kind() == Node::Identifier && self.parent().kind() == Node::Proc
     }
 
-    fn kind_to_raw(kind: Self::Kind) -> rowan::SyntaxKind {
-        kind.into()
+    fn is_reference(&self) -> bool {
+        self.kind() == Node::Identifier && self.parent().kind() != Node::Proc
     }
-}
 
-macro_rules! ast_node {
-    ($ast:ident, $kind:ident) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-        pub struct $ast(SyntaxNode);
-
-        impl $ast {
-            #[must_use]
-            pub fn span(&self, file: FileId) -> Span {
-                let range = self.syntax().text_range();
-                file.span(range.start().into()..range.end().into())
-            }
+    fn resolve(&self) -> Option<&ResolvedToken<Node>> {
+        if !self.is_reference() {
+            return None;
         }
 
-        impl AstNode for $ast {
-            type Language = Language;
-
-            fn can_cast(kind: Node) -> bool {
-                kind == Node::$kind
-            }
-
-            fn cast(node: SyntaxNode) -> Option<Self> {
-                if Self::can_cast(node.kind()) {
-                    Some(Self(node))
-                } else {
-                    None
-                }
-            }
-
-            fn syntax(&self) -> &SyntaxNode {
-                &self.0
-            }
-        }
-    };
-}
-
-macro_rules! ast_token {
-    ($ast:ident, $kind:ident) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-        pub struct $ast(SyntaxToken);
-
-        impl $ast {
-            #[must_use]
-            pub fn text(&self) -> &str {
-                self.0.text()
-            }
-
-            #[must_use]
-            pub fn span(&self, file: FileId) -> Span {
-                let range = self.syntax().text_range();
-                file.span(range.start().into()..range.end().into())
-            }
-
-            #[must_use]
-            pub fn can_cast(kind: Node) -> bool {
-                kind == Node::$kind
-            }
-
-            #[must_use]
-            pub fn cast(node: SyntaxToken) -> Option<Self> {
-                if Self::can_cast(node.kind()) {
-                    Some(Self(node))
-                } else {
-                    None
-                }
-            }
-
-            #[must_use]
-            pub const fn syntax(&self) -> &SyntaxToken {
-                &self.0
-            }
-        }
-    };
-}
-
-ast_node!(Root, Root);
-ast_node!(Def, Def);
-ast_node!(Proc, Proc);
-ast_node!(Call, Call);
-ast_node!(Block, Block);
-ast_node!(Group, Group);
-ast_token!(Identifier, Identifier);
-ast_token!(String, String);
-ast_token!(Number, Number);
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Line {
-    Def(Def),
-    Call(Call),
-}
-
-impl AstNode for Line {
-    type Language = Language;
-
-    fn can_cast(kind: SyntaxKind) -> bool {
-        Def::can_cast(kind) || Call::can_cast(kind)
-    }
-
-    fn cast(node: SyntaxNode) -> Option<Self> {
-        match node.kind() {
-            Node::Def => Def::cast(node).map(Line::Def),
-            Node::Call => Call::cast(node).map(Line::Call),
-            _ => None,
-        }
-    }
-
-    fn syntax(&self) -> &SyntaxNode {
-        match self {
-            Self::Def(def) => def.syntax(),
-            Self::Call(call) => call.syntax(),
-        }
-    }
-}
-
-impl Line {
-    #[must_use]
-    pub fn def(&self) -> Option<Def> {
-        match self {
-            Self::Def(def) => Some(def.clone()),
-            Self::Call(_) => None,
-        }
-    }
-
-    #[must_use]
-    pub fn call(&self) -> Option<Call> {
-        match self {
-            Self::Call(call) => Some(call.clone()),
-            Self::Def(_) => None,
-        }
-    }
-
-    #[must_use]
-    pub fn block(&self) -> Option<Block> {
-        match self {
-            Self::Def(def) => def.block(),
-            Self::Call(call) => call.block(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Argument {
-    Identifier(Identifier),
-    String(String),
-    Number(Number),
-    Group(Group),
-}
-
-impl Argument {
-    fn can_cast(kind: Node) -> bool {
-        Identifier::can_cast(kind) || Group::can_cast(kind)
-    }
-
-    fn cast(node: SyntaxElement) -> Option<Self> {
-        match node {
-            SyntaxElement::Token(token) => Identifier::cast(token).map(Self::Identifier),
-            SyntaxElement::Node(node) => Group::cast(node).map(Self::Group),
-        }
-    }
-}
-
-impl Root {
-    pub fn lines(&self) -> impl Iterator<Item = Line> {
-        self.syntax().children().filter_map(Line::cast)
-    }
-
-    pub fn defs(&self) -> impl Iterator<Item = Def> + use<> {
-        self.syntax().children().filter_map(Def::cast)
-    }
-
-    pub fn identifier_at(&self, offset: usize) -> Option<Identifier> {
-        self.syntax()
-            .token_at_offset(offset.try_into().unwrap())
-            .right_biased()
-            .and_then(Identifier::cast)
-    }
-}
-
-impl Block {
-    pub fn line(&self) -> Line {
-        self.syntax().prev_sibling().and_then(Line::cast).unwrap()
-    }
-
-    pub fn lines(&self) -> impl Iterator<Item = Line> {
-        self.syntax().children().filter_map(Line::cast)
-    }
-}
-
-impl Def {
-    /// The block (if any) immediately following this definition.
-    pub fn block(&self) -> Option<Block> {
-        self.0.next_sibling().and_then(Block::cast)
-    }
-
-    /// The line containing this definition.
-    pub fn line(&self) -> Line {
-        self.syntax()
+        // Intital scope is the parent Block node or Root.
+        let mut scope = self
             .ancestors()
-            .filter(|node| node.parent().map_or(true, |n| Block::can_cast(n.kind())))
-            .find_map(Line::cast)
-            .unwrap()
-    }
+            .find(|n| matches!(n.kind(), Node::Block | Node::Root))
+            .expect("Every token descends from root.");
 
-    pub fn procedure(&self) -> Proc {
-        self.syntax().children().find_map(Proc::cast).unwrap()
-    }
-
-    pub fn call(&self) -> Option<Call> {
-        // Try same line first
-        if let Some(call) = self.syntax().children().find_map(Call::cast) {
-            return Some(call);
-        }
-
-        // Try next line in associated block
-        if let Some(block) = self.block() {
-            let next_line = block.lines().next();
-            if let Some(call) = next_line.and_then(|line| line.call()) {
-                return Some(call);
+        // Find the first binder in the scope.
+        let identifier = self.text();
+        loop {
+            // Try looking up in the current scope.
+            let mut current = self;
+            while let Some(prev) = previous_token(scope, current) {
+                if prev.is_binder() && prev.text() == identifier {
+                    return Some(prev);
+                }
+                current = prev;
             }
-        }
 
-        // Try next line in containing block
-        self.line().syntax().next_sibling().and_then(Call::cast)
-    }
-}
+            // Try looking down in the current scope.
+            let mut current = self;
+            while let Some(next) = next_token(scope, current) {
+                if next.is_binder() && next.text() == identifier {
+                    return Some(next);
+                }
+                current = next;
+            }
 
-impl Proc {
-    pub fn group(&self) -> Option<Group> {
-        self.syntax().parent().and_then(Group::cast)
-    }
-
-    pub fn identifiers(&self) -> impl Iterator<Item = Identifier> {
-        self.syntax()
-            .children_with_tokens()
-            .filter_map(SyntaxElement::into_token)
-            .filter_map(Identifier::cast)
-    }
-
-    #[must_use]
-    pub fn name(&self) -> Option<Identifier> {
-        if self.group().is_some() {
-            None
-        } else {
-            self.identifiers().next()
+            // Go up in scope.
+            scope = scope.parent()?;
         }
     }
+}
 
-    pub fn parameters(&self) -> impl Iterator<Item = Identifier> {
-        self.identifiers().skip(usize::from(self.group().is_some()))
+/// First token skipping [`Node::Block`] subtrees.
+fn first_token_skipping_block(element: ResolvedElementRef<Node>) -> Option<&ResolvedToken<Node>> {
+    match element {
+        NodeOrToken::Token(token) => Some(token),
+        NodeOrToken::Node(node) if node.kind() == Node::Block => {
+            first_token_skipping_block(node.next_sibling_or_token()?)
+        }
+        NodeOrToken::Node(node) => first_token_skipping_block(node.first_child_or_token()?),
     }
 }
 
-impl Call {
-    pub fn block(&self) -> Option<Block> {
-        self.0.next_sibling().and_then(Block::cast)
-    }
-
-    pub fn arguments(&self) -> impl Iterator<Item = Argument> {
-        self.syntax()
-            .children_with_tokens()
-            .filter_map(|node| match node {
-                NodeOrToken::Node(node) => Group::cast(node).map(Argument::Group),
-                Node::Identifier => Identifier::cast(token).map(Argument::Identifier),
-                Node::String => String::cast(token).map(Argument::String),
-                Node::Number => Number::cast(token).map(Argument::Number),
-                _ => None,
-            })
+/// Last token skipping [`Node::Block`] subtrees.
+fn last_token_skipping_block(element: ResolvedElementRef<Node>) -> Option<&ResolvedToken<Node>> {
+    match element {
+        NodeOrToken::Token(token) => Some(token),
+        NodeOrToken::Node(node) if node.kind() == Node::Block => {
+            last_token_skipping_block(node.prev_sibling_or_token()?)
+        }
+        NodeOrToken::Node(node) => last_token_skipping_block(node.last_child_or_token()?),
     }
 }
 
-impl Group {
-    pub fn def(&self) -> Option<Def> {
-        self.syntax().children().next().and_then(Def::cast)
-    }
-
-    pub fn call(&self) -> Option<Call> {
-        self.syntax().children().next().and_then(Call::cast)
-    }
+/// Returns the next token after element without leaving the scope or entering
+/// sub-scopes.
+fn next_token<'a>(
+    scope: &'a ResolvedNode<Node>,
+    token: &'a ResolvedToken<Node>,
+) -> Option<&'a ResolvedToken<Node>> {
+    token
+        .ancestors()
+        .take_while(|&it| it != scope)
+        .find_map(|it| first_token_skipping_block(it.next_sibling_or_token()?))
 }
 
-impl Identifier {
-    #[must_use]
-    pub fn offset(&self) -> usize {
-        self.0.text_range().start().into()
-    }
-}
-
-impl String {
-    #[must_use]
-    pub fn value(&self) -> &str {
-        let raw = self.syntax().text();
-        // Trim enclosing quotes
-        &raw['“'.len_utf8()..raw.len() - '”'.len_utf8()]
-    }
+/// Returns the previous token before element without leaving the scope.
+fn previous_token<'a>(
+    scope: &'a ResolvedNode<Node>,
+    token: &'a ResolvedToken<Node>,
+) -> Option<&'a ResolvedToken<Node>> {
+    token
+        .ancestors()
+        .take_while(|&it| it != scope)
+        .find_map(|it| last_token_skipping_block(it.prev_sibling_or_token()?))
 }

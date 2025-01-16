@@ -5,9 +5,9 @@ pub mod cst_parser;
 mod grammar;
 mod indentation;
 mod lexer;
-// pub mod syntax;
+mod syntax;
 
-pub use {self::lexer::Node, chumsky::span::SimpleSpan as Span};
+pub use {self::lexer::Node, chumsky::span::SimpleSpan as Span, syntax::ResolvedTokenExt};
 use {
     self::{
         cst_parser::{CstInput, CstState},

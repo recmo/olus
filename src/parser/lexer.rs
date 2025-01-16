@@ -63,16 +63,12 @@ pub enum Node {
     // Grammar nodes
     /// The root of the syntax tree
     Root,
-    /// A line defining a procedure
-    Def,
+    /// An indented block of code
+    Block,
     /// A fragment declaring a procedure
     Proc,
     /// A fragment specifying a call
     Call,
-    /// An indented block of code
-    Block,
-    /// A parenthesized group
-    Group,
 
     // Errors
     /// Unknown token.
@@ -86,9 +82,19 @@ pub enum Node {
 }
 
 impl Node {
+    /// Nodes that are semantic after parsing the concrete syntax.
     #[must_use]
-    pub const fn is_trivia(&self) -> bool {
-        matches!(self, Self::Whitespace | Self::Newline)
+    pub const fn is_syntax(&self) -> bool {
+        matches!(
+            self,
+            Self::Root
+                | Self::Block
+                | Self::Proc
+                | Self::Call
+                | Self::Identifier
+                | Self::String
+                | Self::Number
+        )
     }
 }
 
