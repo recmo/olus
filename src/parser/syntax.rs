@@ -6,6 +6,7 @@ use {
         syntax::{ResolvedElementRef, ResolvedNode, ResolvedToken},
         util::NodeOrToken,
     },
+    std::iter::once,
 };
 
 /// Extension to the [`ResolvedToken`] to give the CST some AST like properties.
@@ -95,9 +96,13 @@ fn next_token<'a>(
     scope: &'a ResolvedNode<Node>,
     token: &'a ResolvedToken<Node>,
 ) -> Option<&'a ResolvedToken<Node>> {
-    token
-        .ancestors()
-        .take_while(|&it| it != scope)
+    once(ResolvedElementRef::from(token))
+        .chain(
+            token
+                .ancestors()
+                .take_while(|&it| it != scope)
+                .map(ResolvedElementRef::from),
+        )
         .find_map(|it| first_token_skipping_block(it.next_sibling_or_token()?))
 }
 
@@ -106,8 +111,12 @@ fn previous_token<'a>(
     scope: &'a ResolvedNode<Node>,
     token: &'a ResolvedToken<Node>,
 ) -> Option<&'a ResolvedToken<Node>> {
-    token
-        .ancestors()
-        .take_while(|&it| it != scope)
+    once(ResolvedElementRef::from(token))
+        .chain(
+            token
+                .ancestors()
+                .take_while(|&it| it != scope)
+                .map(ResolvedElementRef::from),
+        )
         .find_map(|it| last_token_skipping_block(it.prev_sibling_or_token()?))
 }
