@@ -1,8 +1,8 @@
 use {
     olus::{
         Files,
+        front::{ElementRef, Kind, Node, NodeExt, TokenExt, compile, parse},
         ir::Atom,
-        parser::{ElementRef, Kind, Node, NodeExt, TokenExt, compile, parse},
     },
     std::path::PathBuf,
 };
@@ -17,22 +17,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     pretty_print(&root, 1);
 
-    let program = compile(&root);
+    let program = compile(source.to_string(), &root);
 
-    for proc in program.procedures {
+    for proc in &program.procedures {
         for (i, arg) in proc.arguments.iter().enumerate() {
-            eprint!("x{}", arg.id);
+            if let Some(name) = program.resolve_name(arg.id) {
+                eprint!("{name}");
+            } else {
+                eprint!("x{}", arg.id);
+            }
             if i != proc.arguments.len() - 1 {
                 eprint!(" ");
             }
         }
         eprint!(":");
-        for a in proc.body {
+        for a in &proc.body {
             eprint!(" ");
             match a {
                 Atom::Number { value, .. } => eprint!("{value}"),
                 Atom::String { value, .. } => eprint!("{value}"),
-                Atom::Reference { id, .. } => eprint!("x{id}"),
+                Atom::Reference { id, .. } => {
+                    if let Some(name) = program.resolve_name(*id) {
+                        eprint!("{name}");
+                    } else {
+                        eprint!("x{id}");
+                    }
+                }
             }
         }
         eprintln!();

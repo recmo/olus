@@ -1,256 +1,86 @@
-mod name_resolution;
-mod renamer;
-mod unparser;
+//! Parser for the Oluś language.
+//! See [parser] for the grammar and [Node] for the lexer.
 
-pub use self::{name_resolution::Resolution, renamer::Naming, unparser::unparse};
+mod compiler;
+mod cst_parser;
+mod grammar;
+mod indentation;
+mod lexer;
+mod syntax;
+
+pub use {
+    self::{
+        compiler::compile,
+        lexer::Kind,
+        syntax::{NodeExt, TokenExt},
+    },
+    chumsky::span::SimpleSpan as Span,
+};
 use {
-    crate::{
-        files::{FileId, Files},
-        parser::syntax::{Argument, Identifier, Line, Root},
+    self::{
+        cst_parser::{CstInput, CstState},
+        grammar::parser,
+        indentation::Lexer,
     },
-    ariadne::{Color, Label, Report, ReportKind, Source},
-    rowan::ast::AstNode,
-    std::{
-        fmt::{Display, Write},
-        ops::Range,
+    ariadne::{Label, Report, ReportKind, Source},
+    chumsky::{
+        Parser,
+        input::{Input, Stream},
     },
+    cstree::{
+        build::GreenNodeBuilder,
+        syntax::{ResolvedElement, ResolvedElementRef, ResolvedNode, ResolvedToken, SyntaxNode},
+    },
+    yansi::Color,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Sugared<'a> {
-    source:      &'a str,
-    definitions: Vec<Definition>,
-    binders:     Vec<Range<usize>>,
-}
+// Concrete syntax tree types.
+pub type Node = ResolvedNode<Kind>;
+pub type Token = ResolvedToken<Kind>;
+pub type Element = ResolvedElement<Kind>;
+pub type ElementRef<'a> = ResolvedElementRef<'a, Kind>;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Definition {
-    procedure: Vec<usize>,
-    call:      Vec<Expression>,
-    span:      Range<usize>,
-    call_span: Range<usize>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Expression {
-    Reference {
-        binder: usize,
-        span:   Range<usize>,
-    },
-    String {
-        span: Range<usize>,
-    },
-    Number {
-        value: u64,
-        span:  Range<usize>,
-    },
-    Definition {
-        span:      Range<usize>,
-        procedure: Vec<usize>,
-        call:      Vec<Expression>,
-    },
-    Call {
-        span: Range<usize>,
-        call: Vec<Expression>,
-    },
-}
-
-impl<'a> Display for Sugared<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.write(f)
-    }
-}
-
-impl<'a> Sugared<'a> {
-    fn write<W: Write>(&self, f: &mut W) -> std::fmt::Result {
-        for definition in &self.definitions {
-            self.write_definition(f, definition)?;
-            writeln!(f)?;
-        }
-        Ok(())
-    }
-
-    fn write_identifier<W: Write>(&self, f: &mut W, id: usize) -> std::fmt::Result {
-        write!(f, "{}", &self.source[self.binders[id].clone()])
-    }
-
-    fn write_definition<W: Write>(&self, f: &mut W, definition: &Definition) -> std::fmt::Result {
-        for (i, param) in definition.procedure.iter().enumerate() {
-            if i > 0 {
-                write!(f, " ")?;
-            }
-            self.write_identifier(f, *param)?;
-        }
-        write!(f, ": ")?;
-        for (i, arg) in definition.call.iter().enumerate() {
-            if i > 0 {
-                write!(f, " ")?;
-            }
-            self.write_expression(f, arg)?;
-        }
-        Ok(())
-    }
-
-    fn write_expression<W: Write>(&self, f: &mut W, expression: &Expression) -> std::fmt::Result {
-        match expression {
-            Expression::Reference { binder, .. } => self.write_identifier(f, *binder),
-            Expression::String { span } => write!(f, "“{}”", &self.source[span.clone()]),
-            Expression::Number { value, .. } => write!(f, "{value}"),
-            Expression::Definition {
-                procedure, call, ..
-            } => {
-                for (i, param) in procedure.iter().enumerate() {
-                    if i > 0 {
-                        write!(f, " ")?;
-                    }
-                    self.write_identifier(f, *param)?;
-                }
-                write!(f, ": ")?;
-                for (i, arg) in call.iter().enumerate() {
-                    if i > 0 {
-                        write!(f, " ")?;
-                    }
-                    self.write_expression(f, arg)?;
-                }
-                Ok(())
-            }
-            Expression::Call { span, call } => {
-                write!(f, "(")?;
-                for (i, arg) in call.iter().enumerate() {
-                    if i > 0 {
-                        write!(f, " ")?;
-                    }
-                    self.write_expression(f, arg)?;
-                }
-                write!(f, ")")
-            }
-        }
-    }
-}
-
+/// Parse the given source code into a concrete syntax tree.
 #[must_use]
-pub fn parse(files: &Files, file_id: FileId) -> Sugared {
-    let source = files[file_id].contents();
-    let parse = crate::parser::parse(file_id, source);
+pub fn parse(source: &str) -> Node {
+    // Construct a (token, span) stream from the lexer.
+    let lexer = Lexer::new(source);
+    let end_of_input = Span::splat(source.len());
+    let token_stream: CstInput = Stream::from_iter(lexer).map(end_of_input, |(t, s)| (t, s));
 
-    for error in &parse.errors {
-        error.report().eprint(files);
-    }
-    assert!(parse.errors.is_empty(), "Parse errors");
+    // Construct a builder to build the CST.
+    let builder = GreenNodeBuilder::<Kind>::new();
+    let mut state = CstState { source, builder };
+    state.builder.start_node(Kind::Block); // Root node is a block
 
-    let root = parse.root();
-    let mut parser = Parser {
-        sugared:    Sugared {
-            source,
-            definitions: Vec::new(),
-            binders: Vec::new(),
-        },
-        root:       root.clone(),
-        resolution: Resolution::resolve(&root),
-    };
-    parser.collect_binders();
-    parser.parse_root();
-    parser.sugared
-}
-
-struct Parser<'a> {
-    sugared:    Sugared<'a>,
-    root:       Root,
-    resolution: Resolution,
-}
-
-impl<'a> Parser<'a> {
-    fn collect_binders(&mut self) {
-        for binder in self.resolution.binders(&self.root) {
-            self.sugared
-                .binders
-                .push(binder.syntax().text_range().into());
-        }
-    }
-
-    fn lookup_binder(&self, id: &Identifier) -> Option<usize> {
-        let id = self.resolution.lookup(id, &self.root)?;
-        let offset = id.offset();
-        self.sugared
-            .binders
-            .iter()
-            .position(|range| range.start == offset)
-    }
-
-    fn parse_root(&mut self) {
-        for def in self.root.defs() {
-            // Add the identifiers from the procedure
-            let mut procedure = Vec::new();
-            for id in def.procedure().identifiers() {
-                procedure.push(self.lookup_binder(&id).unwrap());
-            }
-
-            // Construct the expression
-            let mut expression = def
-                .call()
-                .unwrap()
-                .arguments()
-                .map(|arg| self.parse_argument(arg))
-                .collect::<Vec<_>>();
-
-            // Add the definition
-            self.sugared.definitions.push(Definition {
-                procedure,
-                call: expression,
-                span: def.syntax().text_range().into(),
-                call_span: def.call().unwrap().syntax().text_range().into(),
-            });
-        }
-    }
-
-    fn parse_argument(&mut self, arg: Argument) -> Expression {
-        match arg {
-            Argument::Identifier(id) => {
-                let binder = self.resolution.lookup(&id, &self.root).unwrap().offset();
-                let binder = self.sugared.binders.iter().position(|b| b.start == binder);
-                let Some(binder) = binder else {
-                    panic!("Could not find binder for identifier");
-                };
-                let span = id.syntax().text_range().into();
-                Expression::Reference { binder, span }
-            }
-            Argument::String(string) => Expression::String {
-                span: string.syntax().text_range().into(),
-            },
-            Argument::Number(number) => Expression::Number {
-                value: number.syntax().text().parse().unwrap(),
-                span:  number.syntax().text_range().into(),
-            },
-            Argument::Group(group) => {
-                if let Some(def) = group.def() {
-                    let mut procedure = Vec::new();
-                    for id in def.procedure().identifiers() {
-                        procedure.push(self.lookup_binder(&id).unwrap());
-                    }
-                    let mut call = def
-                        .call()
-                        .unwrap()
-                        .arguments()
-                        .map(|arg| self.parse_argument(arg))
-                        .collect::<Vec<_>>();
-
-                    Expression::Definition {
-                        span: def.syntax().text_range().into(),
-                        procedure,
-                        call,
-                    }
-                } else if let Some(call) = group.call() {
-                    Expression::Call {
-                        span: call.syntax().text_range().into(),
-                        call: call
-                            .arguments()
-                            .map(|arg| self.parse_argument(arg))
-                            .collect::<Vec<_>>(),
-                    }
-                } else {
-                    unreachable!()
-                }
+    // Parse the source and print errors.
+    let result = parser()
+        .parse_with_state(token_stream, &mut state)
+        .into_result();
+    match result {
+        Ok(()) => {}
+        Err(errs) => {
+            for err in errs {
+                Report::build(ReportKind::Error, err.span().into_range())
+                    .with_code(3)
+                    .with_message(err.to_string())
+                    .with_label(
+                        Label::new(err.span().into_range())
+                            .with_message(err.reason().to_string())
+                            .with_color(Color::Red),
+                    )
+                    .finish()
+                    .eprint(Source::from(source))
+                    .unwrap();
             }
         }
     }
+
+    // Complete and retrieve the root node.
+    state.builder.finish_node();
+    let (root, node_cache) = state.builder.finish();
+
+    // GreenNodeBuilder::new() constructs a node cache and interner.
+    let interner = node_cache.unwrap().into_interner().unwrap();
+    SyntaxNode::new_root_with_resolver(root, interner)
 }

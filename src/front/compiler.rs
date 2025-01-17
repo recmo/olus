@@ -23,10 +23,11 @@ struct Compiler {
 }
 
 #[must_use]
-pub fn compile(root: &Node) -> Program {
+pub fn compile(source: String, root: &Node) -> Program {
     let mut compiler = Compiler {
         identifiers: Vec::new(),
         program:     Program {
+            source,
             procedures: Vec::new(),
         },
     };
@@ -35,7 +36,8 @@ pub fn compile(root: &Node) -> Program {
 }
 
 impl Expression {
-    fn source(&self) -> Span {
+    #[must_use]
+    const fn source(&self) -> Span {
         match self {
             Self::Atom(atom) => atom.source(),
             Self::Procedure { source, .. } | Self::Call { source, .. } => *source,
@@ -91,7 +93,7 @@ impl Compiler {
         {
             // Create a new variable to name the argument.
             let source = expr[call].source();
-            let (definition, reference) = self.fresh_variable(source);
+            let (definition, reference) = self.fresh_variable(false, source);
 
             // Replace the call with the named argument.
             let call = replace(&mut expr[call], Expression::Atom(reference));
@@ -119,7 +121,7 @@ impl Compiler {
                     mut arguments,
                     body,
                 } => {
-                    let (definition, reference) = self.fresh_variable(source);
+                    let (definition, reference) = self.fresh_variable(false, source);
                     arguments.insert(0, definition);
                     let body = self.compile_call(body);
                     self.program.procedures.push(Procedure {
@@ -177,7 +179,7 @@ impl Compiler {
             .iter()
             .find(|i| i.source == identifier.span())
             .copied()
-            .unwrap_or_else(|| self.fresh_variable(identifier.span()).0)
+            .unwrap_or_else(|| self.fresh_variable(true, identifier.span()).0)
     }
 
     fn parse_atom(&mut self, atom: &Token) -> Option<Atom> {
@@ -207,9 +209,9 @@ impl Compiler {
     }
 
     /// Construct a fresh name for an anonymous expression.
-    fn fresh_variable(&mut self, source: Span) -> (Identifier, Atom) {
+    fn fresh_variable(&mut self, named: bool, source: Span) -> (Identifier, Atom) {
         let id = self.identifiers.len() as u32;
-        let identifier = Identifier { source, id };
+        let identifier = Identifier { source, named, id };
         let atom = Atom::Reference { source, id };
         self.identifiers.push(identifier);
         (identifier, atom)

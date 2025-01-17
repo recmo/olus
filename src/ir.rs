@@ -1,10 +1,11 @@
 //! Intermediate Representation
 
-use crate::parser::Span;
+use crate::front::Span;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Identifier {
     pub source: Span,
+    pub named:  bool,
     pub id:     u32,
 }
 
@@ -24,15 +25,31 @@ pub struct Procedure {
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Program {
+    pub source:     String,
     pub procedures: Vec<Procedure>,
 }
 
 impl Atom {
-    pub fn source(&self) -> Span {
+    #[must_use]
+    pub const fn source(&self) -> Span {
         match self {
-            Self::Reference { source, .. } => *source,
-            Self::String { source, .. } => *source,
-            Self::Number { source, .. } => *source,
+            Self::Reference { source, .. }
+            | Self::String { source, .. }
+            | Self::Number { source, .. } => *source,
         }
+    }
+}
+
+impl Program {
+    #[must_use]
+    pub fn resolve_name(&self, id: u32) -> Option<&str> {
+        for proc in &self.procedures {
+            for arg in &proc.arguments {
+                if arg.id == id && arg.named {
+                    return Some(&self.source[arg.source.start..arg.source.end]);
+                }
+            }
+        }
+        None
     }
 }
