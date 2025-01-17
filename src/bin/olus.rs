@@ -1,8 +1,9 @@
 use {
     olus::{
         Files,
-        front::{ElementRef, Kind, Node, NodeExt, TokenExt, compile, parse},
-        ir::Atom,
+        front::{compile, parse, pretty_print_cst},
+        interpreter::{Context, Value, evaluate},
+        ir::{Program, pretty_print_ir},
     },
     std::path::PathBuf,
 };
@@ -15,78 +16,59 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let source = files[file_id].contents();
     let root = parse(source);
 
-    pretty_print(&root, 1);
+    pretty_print_cst(&root, 1);
 
-    let program = compile(source.to_string(), &root);
+    let program = compile(source.to_string(), &root, builtin_resolve);
 
-    for proc in &program.procedures {
-        for (i, arg) in proc.arguments.iter().enumerate() {
-            if let Some(name) = program.resolve_name(arg.id) {
-                eprint!("{name}");
-            } else {
-                eprint!("x{}", arg.id);
-            }
-            if i != proc.arguments.len() - 1 {
-                eprint!(" ");
-            }
-        }
-        eprint!(":");
-        for a in &proc.body {
-            eprint!(" ");
-            match a {
-                Atom::Number { value, .. } => eprint!("{value}"),
-                Atom::String { value, .. } => eprint!("{value}"),
-                Atom::Reference { id, .. } => {
-                    if let Some(name) = program.resolve_name(*id) {
-                        eprint!("{name}");
-                    } else {
-                        eprint!("x{id}");
-                    }
-                }
-            }
-        }
-        eprintln!();
-    }
+    pretty_print_ir(&program);
+
+    // Find a Prcocedure called main.
+    let Some(main) = program.procedures.iter().find(|p| {
+        p.arguments
+            .first()
+            .and_then(|arg| program.resolve_name(arg.id))
+            == Some("main")
+    }) else {
+        panic!("No procedure `main` found.");
+    };
+    let [main, _exit] = main.arguments.as_slice() else {
+        panic!("Procedure `main` should have one arguments.");
+    };
+
+    // Construct an initial call for the virtual machine.
+    evaluate(&program, builtin_eval, &[
+        Value::Closure(main.id, Context::new()),
+        Value::Builtin(100),
+    ]);
 
     Ok(())
 }
 
-fn pretty_print(node: &Node, indent_level: usize) {
-    let indent = "  ".repeat(indent_level);
-    eprint!(
-        "{:>4}..{:<4}{indent}{:?}",
-        usize::from(node.text_range().start()),
-        usize::from(node.text_range().end()),
-        node.kind()
-    );
-    if node.kind() == Kind::Proc {
-        eprint!(" {:?}", node.call());
+fn builtin_resolve(name: &str) -> Option<u8> {
+    match name {
+        "print" => 0,
+        "if" => 1,
+        "is_zero" => 2,
+        "add" => 3,
+        "sub" => 4,
+        "mul" => 5,
+        "div" => 6,
+        "exit" => 100,
+        _ => return None,
     }
-    eprintln!();
+    .into()
+}
 
-    // Recursively print syntax child nodes
-    for child in node.children_with_tokens() {
-        if !child.kind().is_syntax() {
-            continue;
+fn builtin_eval(program: &Program<u8>, builtin: &u8, call: &[Value<u8>]) {
+    match *builtin {
+        0 => {
+            println!("> {:?}", call[0]);
         }
-        match child {
-            ElementRef::Node(node) => pretty_print(node, indent_level + 1),
-            ElementRef::Token(token) => {
-                eprint!(
-                    "{:>4}..{:<4}{indent}  {:?} {:?}",
-                    usize::from(token.text_range().start()),
-                    usize::from(token.text_range().end()),
-                    token.kind(),
-                    token.text(),
-                );
-                if token.is_reference() {
-                    eprint!(" {:?}", token.resolve());
-                }
-                if token.is_binder() {
-                    eprint!(" BINDER");
-                }
-                eprintln!();
-            }
+        100 => {
+            println!("> Exit");
+            return;
         }
+        _ => unimplemented!(),
     }
+    evaluate(program, builtin_eval, &[call[1].clone()])
 }

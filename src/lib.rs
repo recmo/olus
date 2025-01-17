@@ -4,6 +4,7 @@
 mod diagnostic;
 mod files;
 pub mod front;
+pub mod interpreter;
 pub mod ir;
 
 pub use crate::{

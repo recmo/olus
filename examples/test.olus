@@ -18,3 +18,9 @@ fib n return:
 
 is_even n then else:
     if (is_zero n) then (: is_odd (sub n 1) then else)
+
+main exit:
+    print 1 (:)
+    print 11231 (:)
+    print (add 1 1) (:)
+    exit

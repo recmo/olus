@@ -84,3 +84,43 @@ pub fn parse(source: &str) -> Node {
     let interner = node_cache.unwrap().into_interner().unwrap();
     SyntaxNode::new_root_with_resolver(root, interner)
 }
+
+pub fn pretty_print_cst(node: &Node, indent_level: usize) {
+    let indent = "  ".repeat(indent_level);
+    eprint!(
+        "{:>4}..{:<4}{indent}{:?}",
+        usize::from(node.text_range().start()),
+        usize::from(node.text_range().end()),
+        node.kind()
+    );
+    if node.kind() == Kind::Proc {
+        eprint!(" {:?}", node.call());
+    }
+    eprintln!();
+
+    // Recursively print syntax child nodes
+    for child in node.children_with_tokens() {
+        if !child.kind().is_syntax() {
+            continue;
+        }
+        match child {
+            ElementRef::Node(node) => pretty_print_cst(node, indent_level + 1),
+            ElementRef::Token(token) => {
+                eprint!(
+                    "{:>4}..{:<4}{indent}  {:?} {:?}",
+                    usize::from(token.text_range().start()),
+                    usize::from(token.text_range().end()),
+                    token.kind(),
+                    token.text(),
+                );
+                if token.is_reference() {
+                    eprint!(" {:?}", token.resolve());
+                }
+                if token.is_binder() {
+                    eprint!(" BINDER");
+                }
+                eprintln!();
+            }
+        }
+    }
+}

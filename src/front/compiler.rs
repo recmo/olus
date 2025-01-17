@@ -4,38 +4,44 @@ use {
     core::mem::{replace, swap},
 };
 
-enum Expression {
-    Atom(Atom),
+enum Expression<B> {
+    Atom(Atom<B>),
     Procedure {
         source:    Span,
         arguments: Vec<Identifier>,
-        body:      Vec<Expression>,
+        body:      Vec<Expression<B>>,
     },
     Call {
         source: Span,
-        body:   Vec<Expression>,
+        body:   Vec<Expression<B>>,
     },
 }
 
-struct Compiler {
+struct Compiler<B, F> {
     identifiers: Vec<Identifier>,
-    program:     Program,
+    program:     Program<B>,
+    builtins:    F,
 }
 
 #[must_use]
-pub fn compile(source: String, root: &Node) -> Program {
+pub fn compile<B, F: FnMut(&str) -> Option<B>>(
+    source: String,
+    root: &Node,
+    builtins: F,
+) -> Program<B> {
     let mut compiler = Compiler {
         identifiers: Vec::new(),
-        program:     Program {
+        program: Program {
             source,
             procedures: Vec::new(),
         },
+        builtins,
     };
     compiler.compile_node(root);
     compiler.program
 }
 
-impl Expression {
+impl<B> Expression<B> {
     #[must_use]
     const fn source(&self) -> Span {
         match self {
@@ -45,7 +51,7 @@ impl Expression {
     }
 }
 
-impl Compiler {
+impl<B, F: FnMut(&str) -> Option<B>> Compiler<B, F> {
     fn compile_node(&mut self, node: &Node) {
         match node.kind() {
             Kind::Block => {
@@ -84,7 +90,7 @@ impl Compiler {
     }
 
     /// Compile a call of expressions into a call of atoms.
-    fn compile_call(&mut self, mut expr: Vec<Expression>) -> Vec<Atom> {
+    fn compile_call(&mut self, mut expr: Vec<Expression<B>>) -> Vec<Atom<B>> {
         // First eliminate all call groups by converting them to procedure
         // groups.
         while let Some(call) = expr
@@ -136,7 +142,7 @@ impl Compiler {
             .collect()
     }
 
-    fn parse_expression(&mut self, expr: ElementRef) -> Option<Expression> {
+    fn parse_expression(&mut self, expr: ElementRef) -> Option<Expression<B>> {
         match expr {
             ElementRef::Token(token) => self.parse_atom(token).map(Expression::Atom),
             ElementRef::Node(node) if node.kind() == Kind::Proc => {
@@ -182,7 +188,7 @@ impl Compiler {
             .unwrap_or_else(|| self.fresh_variable(true, identifier.span()).0)
     }
 
-    fn parse_atom(&mut self, atom: &Token) -> Option<Atom> {
+    fn parse_atom(&mut self, atom: &Token) -> Option<Atom<B>> {
         match atom.kind() {
             Kind::String => Atom::String {
                 source: atom.span(),
@@ -196,11 +202,19 @@ impl Compiler {
                 value:  atom.text().parse().expect("Could not parse number."),
             },
             Kind::Identifier => {
-                let binder = atom.resolve().expect("Could not resolve binder.");
-                let binder = self.parse_binder(binder);
-                Atom::Reference {
-                    source: atom.span(),
-                    id:     binder.id,
+                if let Some(binder) = atom.resolve() {
+                    let binder = self.parse_binder(binder);
+                    Atom::Reference {
+                        source: atom.span(),
+                        id:     binder.id,
+                    }
+                } else if let Some(builtin) = (self.builtins)(atom.text()) {
+                    Atom::Builtin {
+                        source: atom.span(),
+                        builtin,
+                    }
+                } else {
+                    panic!("Could not resolve identifier");
                 }
             }
             _ => return None,
@@ -209,7 +223,7 @@ impl Compiler {
     }
 
     /// Construct a fresh name for an anonymous expression.
-    fn fresh_variable(&mut self, named: bool, source: Span) -> (Identifier, Atom) {
+    fn fresh_variable(&mut self, named: bool, source: Span) -> (Identifier, Atom<B>) {
         let id = self.identifiers.len() as u32;
         let identifier = Identifier { source, named, id };
         let atom = Atom::Reference { source, id };
