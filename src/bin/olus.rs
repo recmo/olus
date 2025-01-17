@@ -38,37 +38,67 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Construct an initial call for the virtual machine.
     evaluate(&program, builtin_eval, &[
         Value::Closure(main.id, Context::new()),
-        Value::Builtin(100),
+        Value::Builtin("exit"),
     ]);
 
     Ok(())
 }
 
-fn builtin_resolve(name: &str) -> Option<u8> {
-    match name {
-        "print" => 0,
-        "if" => 1,
-        "is_zero" => 2,
-        "add" => 3,
-        "sub" => 4,
-        "mul" => 5,
-        "div" => 6,
-        "exit" => 100,
-        _ => return None,
-    }
-    .into()
+fn builtin_resolve(name: &str) -> Option<&'static str> {
+    const BUILTINS: &[&str] = &["exit", "print", "add", "if", "is_zero", "sub", "mul"];
+    BUILTINS.iter().copied().find(|b| b == &name)
 }
 
-fn builtin_eval(program: &Program<u8>, builtin: &u8, call: &[Value<u8>]) {
+fn builtin_eval(program: &Program<&str>, builtin: &&str, call: &[Value<&str>]) {
     match *builtin {
-        0 => {
+        "print" => {
             println!("> {:?}", call[0]);
+            evaluate(program, builtin_eval, &[call[1].clone()])
         }
-        100 => {
+        "exit" => {
             println!("> Exit");
             return;
         }
+        "add" => {
+            let Value::Number(a) = call[0] else { panic!() };
+            let Value::Number(b) = call[1] else { panic!() };
+            evaluate(program, builtin_eval, &[
+                call[2].clone(),
+                Value::Number(a + b),
+            ])
+        }
+        "sub" => {
+            let Value::Number(a) = call[0] else { panic!() };
+            let Value::Number(b) = call[1] else { panic!() };
+            evaluate(program, builtin_eval, &[
+                call[2].clone(),
+                Value::Number(a - b),
+            ])
+        }
+        "mul" => {
+            let Value::Number(a) = call[0] else { panic!() };
+            let Value::Number(b) = call[1] else { panic!() };
+            evaluate(program, builtin_eval, &[
+                call[2].clone(),
+                Value::Number(a * b),
+            ])
+        }
+        "is_zero" => {
+            let Value::Number(a) = call[0] else { panic!() };
+            evaluate(program, builtin_eval, &[
+                call[1].clone(),
+                Value::Number(if a == 0 { 1 } else { 0 }),
+            ])
+        }
+        "if" => {
+            let Value::Number(a) = call[0] else { panic!() };
+            evaluate(program, builtin_eval, &[(if a == 1 {
+                &call[1]
+            } else {
+                &call[2]
+            })
+            .clone()])
+        }
         _ => unimplemented!(),
     }
-    evaluate(program, builtin_eval, &[call[1].clone()])
 }

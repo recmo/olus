@@ -43,11 +43,18 @@ pub fn evaluate<B: Clone, R, F: FnOnce(&Program<B>, &B, &[Value<B>]) -> R>(
                     Atom::Builtin { builtin, .. } => Value::Builtin(builtin.clone()),
                     Atom::Number { value, .. } => Value::Number(*value),
                     Atom::String { value, .. } => Value::String(value.clone()),
-                    Atom::Reference { id, .. } => context
-                        .0
-                        .get(id)
-                        .cloned()
-                        .unwrap_or_else(|| Value::Closure(*id, context.clone())),
+                    Atom::Reference { id, .. } => context.0.get(id).cloned().unwrap_or_else(|| {
+                        let proc = program
+                            .procedures
+                            .iter()
+                            .find(|proc| proc.arguments[0].id == *id);
+                        if proc.is_none() {
+                            panic!("Unset variable");
+                        }
+
+                        // TODO: Make sure id is a proc name.
+                        Value::Closure(*id, context.clone())
+                    }),
                 })
                 .collect::<Vec<_>>();
 

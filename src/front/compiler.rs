@@ -214,7 +214,7 @@ impl<B, F: FnMut(&str) -> Option<B>> Compiler<B, F> {
                         builtin,
                     }
                 } else {
-                    panic!("Could not resolve identifier");
+                    panic!("Could not resolve identifier `{}`", atom.text());
                 }
             }
             _ => return None,

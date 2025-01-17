@@ -60,7 +60,7 @@ pub fn pretty_print_ir<B>(program: &Program<B>) {
     for proc in &program.procedures {
         for (i, arg) in proc.arguments.iter().enumerate() {
             if let Some(name) = program.resolve_name(arg.id) {
-                eprint!("{name}");
+                eprint!("{name}_{}", arg.id);
             } else {
                 eprint!("_{}", arg.id);
             }
