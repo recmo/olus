@@ -1,7 +1,7 @@
 //! Ties [logos], [chumsky] and [cstree] together in a parser.
 //! See <https://github.com/spreadsheet-lang/spreadsheet/blob/main/lang/src/parser.rs>
 use {
-    super::{Lexer, Node, Span},
+    super::{Kind, Lexer, Span},
     chumsky::{
         extension::v1::{Ext, ExtParser},
         input::{Cursor, InputRef, MappedInput, Stream},
@@ -13,10 +13,10 @@ use {
 };
 
 // Type and trait aliases for the Chumsky parser to make things more concrete.
-pub(super) type CstError<'s> = Rich<'s, Node>;
+pub(super) type CstError<'s> = Rich<'s, Kind>;
 pub(super) type CstExtra<'s, 'c> = extra::Full<CstError<'s>, CstState<'s, 'c>, ()>;
 pub(super) type CstInput<'s> =
-    MappedInput<Node, Span, Stream<Lexer<'s>>, fn((Node, Span)) -> (Node, Span)>;
+    MappedInput<Kind, Span, Stream<Lexer<'s>>, fn((Kind, Span)) -> (Kind, Span)>;
 pub(super) type CstCursor<'s, 'a> = Cursor<'s, 'a, CstInput<'s>>;
 pub(super) type CstCheckpoint<'s, 'a> =
     chumsky::input::Checkpoint<'s, 'a, CstInput<'s>, Checkpoint>;
@@ -30,12 +30,12 @@ impl<'s, 'c: 's, O, P: Parser<'s, CstInput<'s>, O, CstExtra<'s, 'c>>> CstParser<
 /// Parser state containing CST builder.
 pub(super) struct CstState<'s, 'c> {
     pub(super) source:  &'s str,
-    pub(super) builder: GreenNodeBuilder<'c, 'c, Node>,
+    pub(super) builder: GreenNodeBuilder<'c, 'c, Kind>,
 }
 
 /// Generate a `GreenToken` from a parser that outputs the token kind.
 #[derive(Clone, Copy)]
-pub(super) struct CstLeafExt<'s, 'c: 's, P: CstParser<'s, 'c, Node>> {
+pub(super) struct CstLeafExt<'s, 'c: 's, P: CstParser<'s, 'c, Kind>> {
     parser:   P,
     _phantom: PhantomData<(&'s (), &'c ())>,
 }
@@ -43,13 +43,13 @@ pub(super) struct CstLeafExt<'s, 'c: 's, P: CstParser<'s, 'c, Node>> {
 /// Generate a `GreenNode` of the provided kind containing the parse.
 #[derive(Clone, Copy)]
 pub(super) struct CstNodeExt<'s, 'c: 's, P: CstParser<'s, 'c>> {
-    node:     Node,
+    node:     Kind,
     parser:   P,
     _phantom: PhantomData<(&'s (), &'c ())>,
 }
 
 pub(super) trait ParserExt<'s, 'c: 's>: CstParser<'s, 'c> + Sized {
-    fn node(self, node: Node) -> Ext<CstNodeExt<'s, 'c, Self>> {
+    fn node(self, node: Kind) -> Ext<CstNodeExt<'s, 'c, Self>> {
         Ext(CstNodeExt {
             node,
             parser: self,
@@ -60,7 +60,7 @@ pub(super) trait ParserExt<'s, 'c: 's>: CstParser<'s, 'c> + Sized {
 
 impl<'s, 'c: 's, P: CstParser<'s, 'c>> ParserExt<'s, 'c> for P {}
 
-pub(super) fn token<'s, 'c: 's>(node: Node) -> impl CstParser<'s, 'c> + Clone {
+pub(super) fn token<'s, 'c: 's>(node: Kind) -> impl CstParser<'s, 'c> + Clone {
     Ext(CstLeafExt {
         parser:   just(node),
         _phantom: PhantomData,
@@ -71,7 +71,7 @@ pub(super) fn token<'s, 'c: 's>(node: Node) -> impl CstParser<'s, 'c> + Clone {
 impl<'s, 'c: 's> Inspector<'s, CstInput<'s>> for CstState<'s, 'c> {
     type Checkpoint = Checkpoint;
 
-    fn on_token(&mut self, _token: &Node) {}
+    fn on_token(&mut self, _token: &Kind) {}
 
     fn on_save<'parse>(&self, _cursor: &CstCursor<'s, 'parse>) -> Checkpoint {
         self.builder.checkpoint()
@@ -83,7 +83,7 @@ impl<'s, 'c: 's> Inspector<'s, CstInput<'s>> for CstState<'s, 'c> {
 }
 
 /// Parser extension to create `GreenToken`s
-impl<'s, 'c: 's, P: CstParser<'s, 'c, Node>> ExtParser<'s, CstInput<'s>, (), CstExtra<'s, 'c>>
+impl<'s, 'c: 's, P: CstParser<'s, 'c, Kind>> ExtParser<'s, CstInput<'s>, (), CstExtra<'s, 'c>>
     for CstLeafExt<'s, 'c, P>
 {
     fn parse<'parse>(

@@ -1,6 +1,6 @@
 use {
     super::{
-        Node,
+        Kind,
         cst_parser::{CstParser, ParserExt, token},
     },
     chumsky::prelude::*,
@@ -10,7 +10,7 @@ use {
 #[must_use]
 pub(super) fn parser<'source, 'cache: 'source>() -> impl CstParser<'source, 'cache> {
     #[allow(clippy::enum_glob_use)]
-    use Node::*;
+    use Kind::*;
 
     let expression = recursive(|expression| {
         let atom = choice((token(Identifier), token(Number), token(String)));

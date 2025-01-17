@@ -11,9 +11,9 @@ use {
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Logos, IntoPrimitive, TryFromPrimitive,
 )]
-#[logos(error = Option<Node>)]
+#[logos(error = Option<Kind>)]
 #[repr(u8)]
-pub enum Node {
+pub enum Kind {
     /// White space without line breaks
     /// Ignores newlines from UAX31-R3a1.
     /// See <https://www.unicode.org/reports/tr31/#R3a-1>
@@ -81,7 +81,7 @@ pub enum Node {
     ErrorInvalidTokenKind,
 }
 
-impl Node {
+impl Kind {
     /// Nodes that are semantic after parsing the concrete syntax.
     #[must_use]
     pub const fn is_syntax(&self) -> bool {
@@ -98,14 +98,14 @@ impl Node {
     }
 }
 
-impl Display for Node {
+impl Display for Kind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{self:?}")
     }
 }
 
 /// Syntax definition for [cstree]
-impl Syntax for Node {
+impl Syntax for Kind {
     fn from_raw(raw: RawSyntaxKind) -> Self {
         u8::try_from(raw.0)
             .ok()
@@ -132,7 +132,7 @@ impl Syntax for Node {
 }
 
 /// Matches a string literal.
-fn string(lexer: &mut logos::Lexer<Node>) -> Result<(), Option<Node>> {
+fn string(lexer: &mut logos::Lexer<Kind>) -> Result<(), Option<Kind>> {
     #[derive(Logos)]
     #[logos(skip "[^“”]+")]
     enum Token {
@@ -158,5 +158,5 @@ fn string(lexer: &mut logos::Lexer<Node>) -> Result<(), Option<Node>> {
     }
 
     // Unclosed string literal
-    Err(Some(Node::ErrorUnterminatedString))
+    Err(Some(Kind::ErrorUnterminatedString))
 }

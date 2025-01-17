@@ -1,8 +1,7 @@
 use {
-    cstree::{syntax::ResolvedNode, util::NodeOrToken},
     olus::{
         Files,
-        parser::{Node, ResolvedTokenExt, parse},
+        parser::{ElementRef, Node, TokenExt, parse},
     },
     std::path::PathBuf,
 };
@@ -22,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn pretty_print(node: &ResolvedNode<Node>, indent_level: usize) {
+fn pretty_print(node: &Node, indent_level: usize) {
     let indent = "  ".repeat(indent_level);
     println!(
         "{:>4}..{:<4}{indent}{:?}",
@@ -37,8 +36,8 @@ fn pretty_print(node: &ResolvedNode<Node>, indent_level: usize) {
             continue;
         }
         match child {
-            NodeOrToken::Node(node) => pretty_print(node, indent_level + 1),
-            NodeOrToken::Token(token) => {
+            ElementRef::Node(node) => pretty_print(node, indent_level + 1),
+            ElementRef::Token(token) => {
                 eprint!(
                     "{:>4}..{:<4}{indent}  {:?} {:?}",
                     usize::from(token.text_range().start()),

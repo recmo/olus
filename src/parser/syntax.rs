@@ -1,16 +1,13 @@
 //! Extension trait for [`ResolvedToken`] to give the CST some AST like
 //! properties.
 use {
-    super::Node,
-    cstree::{
-        syntax::{ResolvedElementRef, ResolvedNode, ResolvedToken},
-        util::NodeOrToken,
-    },
+    super::{Element, ElementRef, Kind, Node, Token},
+    cstree::util::NodeOrToken,
     std::iter::once,
 };
 
 /// Extension to the [`ResolvedToken`] to give the CST some AST like properties.
-pub trait ResolvedTokenExt {
+pub trait TokenExt {
     /// Check if the token is an identifier binder.
     fn is_binder(&self) -> bool;
 
@@ -18,19 +15,19 @@ pub trait ResolvedTokenExt {
     fn is_reference(&self) -> bool;
 
     /// Resolve the reference to a binder.
-    fn resolve(&self) -> Option<&ResolvedToken<Node>>;
+    fn resolve(&self) -> Option<&Token>;
 }
 
-impl ResolvedTokenExt for ResolvedToken<Node> {
+impl TokenExt for Token {
     fn is_binder(&self) -> bool {
-        self.kind() == Node::Identifier && self.parent().kind() == Node::Proc
+        self.kind() == Kind::Identifier && self.parent().kind() == Kind::Proc
     }
 
     fn is_reference(&self) -> bool {
-        self.kind() == Node::Identifier && self.parent().kind() != Node::Proc
+        self.kind() == Kind::Identifier && self.parent().kind() != Kind::Proc
     }
 
-    fn resolve(&self) -> Option<&ResolvedToken<Node>> {
+    fn resolve(&self) -> Option<&Token> {
         if !self.is_reference() {
             return None;
         }
@@ -38,7 +35,7 @@ impl ResolvedTokenExt for ResolvedToken<Node> {
         // Intital scope is the parent Block node or Root.
         let mut scope = self
             .ancestors()
-            .find(|n| matches!(n.kind(), Node::Block | Node::Root))
+            .find(|n| matches!(n.kind(), Kind::Block | Kind::Root))
             .expect("Every token descends from root.");
 
         // Find the first binder in the scope.
@@ -69,10 +66,10 @@ impl ResolvedTokenExt for ResolvedToken<Node> {
 }
 
 /// First token skipping [`Node::Block`] subtrees.
-fn first_token_skipping_block(element: ResolvedElementRef<Node>) -> Option<&ResolvedToken<Node>> {
+fn first_token_skipping_block(element: ElementRef) -> Option<&Token> {
     match element {
         NodeOrToken::Token(token) => Some(token),
-        NodeOrToken::Node(node) if node.kind() == Node::Block => {
+        NodeOrToken::Node(node) if node.kind() == Kind::Block => {
             first_token_skipping_block(node.next_sibling_or_token()?)
         }
         NodeOrToken::Node(node) => first_token_skipping_block(node.first_child_or_token()?),
@@ -80,10 +77,10 @@ fn first_token_skipping_block(element: ResolvedElementRef<Node>) -> Option<&Reso
 }
 
 /// Last token skipping [`Node::Block`] subtrees.
-fn last_token_skipping_block(element: ResolvedElementRef<Node>) -> Option<&ResolvedToken<Node>> {
+fn last_token_skipping_block(element: ElementRef) -> Option<&Token> {
     match element {
         NodeOrToken::Token(token) => Some(token),
-        NodeOrToken::Node(node) if node.kind() == Node::Block => {
+        NodeOrToken::Node(node) if node.kind() == Kind::Block => {
             last_token_skipping_block(node.prev_sibling_or_token()?)
         }
         NodeOrToken::Node(node) => last_token_skipping_block(node.last_child_or_token()?),
@@ -92,31 +89,25 @@ fn last_token_skipping_block(element: ResolvedElementRef<Node>) -> Option<&Resol
 
 /// Returns the next token after element without leaving the scope or entering
 /// sub-scopes.
-fn next_token<'a>(
-    scope: &'a ResolvedNode<Node>,
-    token: &'a ResolvedToken<Node>,
-) -> Option<&'a ResolvedToken<Node>> {
-    once(ResolvedElementRef::from(token))
+fn next_token<'a>(scope: &'a Node, token: &'a Token) -> Option<&'a Token> {
+    once(ElementRef::from(token))
         .chain(
             token
                 .ancestors()
                 .take_while(|&it| it != scope)
-                .map(ResolvedElementRef::from),
+                .map(ElementRef::from),
         )
         .find_map(|it| first_token_skipping_block(it.next_sibling_or_token()?))
 }
 
 /// Returns the previous token before element without leaving the scope.
-fn previous_token<'a>(
-    scope: &'a ResolvedNode<Node>,
-    token: &'a ResolvedToken<Node>,
-) -> Option<&'a ResolvedToken<Node>> {
-    once(ResolvedElementRef::from(token))
+fn previous_token<'a>(scope: &'a Node, token: &'a Token) -> Option<&'a Token> {
+    once(ElementRef::from(token))
         .chain(
             token
                 .ancestors()
                 .take_while(|&it| it != scope)
-                .map(ResolvedElementRef::from),
+                .map(ElementRef::from),
         )
         .find_map(|it| last_token_skipping_block(it.prev_sibling_or_token()?))
 }

@@ -7,7 +7,7 @@ mod indentation;
 mod lexer;
 mod syntax;
 
-pub use {self::lexer::Node, chumsky::span::SimpleSpan as Span, syntax::ResolvedTokenExt};
+pub use {self::lexer::Kind, chumsky::span::SimpleSpan as Span, syntax::TokenExt};
 use {
     self::{
         cst_parser::{CstInput, CstState},
@@ -21,22 +21,27 @@ use {
     },
     cstree::{
         build::GreenNodeBuilder,
-        syntax::{ResolvedNode, SyntaxNode},
+        syntax::{ResolvedElement, ResolvedElementRef, ResolvedNode, ResolvedToken, SyntaxNode},
     },
     yansi::Color,
 };
 
+pub type Node = ResolvedNode<Kind>;
+pub type Token = ResolvedToken<Kind>;
+pub type Element = ResolvedElement<Kind>;
+pub type ElementRef<'a> = ResolvedElementRef<'a, Kind>;
+
 #[must_use]
-pub fn parse(source: &str) -> ResolvedNode<Node> {
+pub fn parse(source: &str) -> Node {
     // Construct a (token, span) stream from the lexer.
     let lexer = Lexer::new(source);
     let end_of_input = Span::splat(source.len());
     let token_stream: CstInput = Stream::from_iter(lexer).map(end_of_input, |(t, s)| (t, s));
 
     // Construct a builder to build the CST.
-    let builder = GreenNodeBuilder::<Node>::new();
+    let builder = GreenNodeBuilder::<Kind>::new();
     let mut state = CstState { source, builder };
-    state.builder.start_node(Node::Root);
+    state.builder.start_node(Kind::Root);
 
     // Parse the source and print errors.
     let result = parser()
