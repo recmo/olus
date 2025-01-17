@@ -1,13 +1,21 @@
 //! Parser for the Oluś language.
 //! See [parser] for the grammar and [Node] for the lexer.
 
-pub mod cst_parser;
+mod compiler;
+mod cst_parser;
 mod grammar;
 mod indentation;
 mod lexer;
 mod syntax;
 
-pub use {self::lexer::Kind, chumsky::span::SimpleSpan as Span, syntax::TokenExt};
+pub use {
+    self::{
+        compiler::compile,
+        lexer::Kind,
+        syntax::{NodeExt, TokenExt},
+    },
+    chumsky::span::SimpleSpan as Span,
+};
 use {
     self::{
         cst_parser::{CstInput, CstState},
@@ -26,11 +34,13 @@ use {
     yansi::Color,
 };
 
+// Concrete syntax tree types.
 pub type Node = ResolvedNode<Kind>;
 pub type Token = ResolvedToken<Kind>;
 pub type Element = ResolvedElement<Kind>;
 pub type ElementRef<'a> = ResolvedElementRef<'a, Kind>;
 
+/// Parse the given source code into a concrete syntax tree.
 #[must_use]
 pub fn parse(source: &str) -> Node {
     // Construct a (token, span) stream from the lexer.
@@ -41,7 +51,7 @@ pub fn parse(source: &str) -> Node {
     // Construct a builder to build the CST.
     let builder = GreenNodeBuilder::<Kind>::new();
     let mut state = CstState { source, builder };
-    state.builder.start_node(Kind::Root);
+    state.builder.start_node(Kind::Block); // Root node is a block
 
     // Parse the source and print errors.
     let result = parser()

@@ -1,13 +1,25 @@
 //! Extension trait for [`ResolvedToken`] to give the CST some AST like
 //! properties.
 use {
-    super::{Element, ElementRef, Kind, Node, Token},
+    super::{ElementRef, Kind, Node, Span, Token},
+    core::iter::once,
     cstree::util::NodeOrToken,
-    std::iter::once,
 };
 
-/// Extension to the [`ResolvedToken`] to give the CST some AST like properties.
+/// Extension to [`Node`] to give the CST some AST like properties.
+pub trait NodeExt {
+    fn span(&self) -> Span;
+
+    fn is_statement(&self) -> bool;
+
+    /// Finds the call associated with a Proc node
+    fn call(&self) -> Option<&Node>;
+}
+
+/// Extension to [`Token`] to give the CST some AST like properties.
 pub trait TokenExt {
+    fn span(&self) -> Span;
+
     /// Check if the token is an identifier binder.
     fn is_binder(&self) -> bool;
 
@@ -18,7 +30,49 @@ pub trait TokenExt {
     fn resolve(&self) -> Option<&Token>;
 }
 
+impl NodeExt for Node {
+    fn span(&self) -> Span {
+        Span::new(
+            self.text_range().start().into(),
+            self.text_range().end().into(),
+        )
+    }
+
+    fn is_statement(&self) -> bool {
+        matches!(self.kind(), Kind::Call | Kind::Proc)
+            && self.parent().is_some_and(|n| n.kind() == Kind::Block)
+    }
+
+    fn call(&self) -> Option<&Node> {
+        // Only valid on Proc nodes.
+        if self.kind() != Kind::Proc {
+            return None;
+        }
+
+        // Check if this Proc contains an immediate call.
+        if let Some(node) = self.last_child().filter(|n| n.kind() == Kind::Call) {
+            return Some(node);
+        }
+
+        // It must be the next line, or first line of the following block.
+        let line = self.ancestors().find(|n| n.is_statement())?;
+        let sibling = line.next_sibling()?;
+        match sibling.kind() {
+            Kind::Call => Some(sibling),
+            Kind::Block => sibling.first_child().filter(|n| n.kind() == Kind::Call),
+            _ => None,
+        }
+    }
+}
+
 impl TokenExt for Token {
+    fn span(&self) -> Span {
+        Span::new(
+            self.text_range().start().into(),
+            self.text_range().end().into(),
+        )
+    }
+
     fn is_binder(&self) -> bool {
         self.kind() == Kind::Identifier && self.parent().kind() == Kind::Proc
     }
@@ -35,8 +89,8 @@ impl TokenExt for Token {
         // Intital scope is the parent Block node or Root.
         let mut scope = self
             .ancestors()
-            .find(|n| matches!(n.kind(), Kind::Block | Kind::Root))
-            .expect("Every token descends from root.");
+            .find(|n| matches!(n.kind(), Kind::Block))
+            .expect("Every token descends from a root block.");
 
         // Find the first binder in the scope.
         let identifier = self.text();

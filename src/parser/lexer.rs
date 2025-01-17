@@ -61,8 +61,6 @@ pub enum Kind {
     Dedent,
 
     // Grammar nodes
-    /// The root of the syntax tree
-    Root,
     /// An indented block of code
     Block,
     /// A fragment declaring a procedure
@@ -87,13 +85,7 @@ impl Kind {
     pub const fn is_syntax(&self) -> bool {
         matches!(
             self,
-            Self::Root
-                | Self::Block
-                | Self::Proc
-                | Self::Call
-                | Self::Identifier
-                | Self::String
-                | Self::Number
+            Self::Block | Self::Proc | Self::Call | Self::Identifier | Self::String | Self::Number
         )
     }
 }

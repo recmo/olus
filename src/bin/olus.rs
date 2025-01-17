@@ -1,7 +1,8 @@
 use {
     olus::{
         Files,
-        parser::{ElementRef, Node, TokenExt, parse},
+        ir::Atom,
+        parser::{ElementRef, Kind, Node, NodeExt, TokenExt, compile, parse},
     },
     std::path::PathBuf,
 };
@@ -14,21 +15,44 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let source = files[file_id].contents();
     let root = parse(source);
 
-    eprintln!("{root:#?}");
-
     pretty_print(&root, 1);
+
+    let program = compile(&root);
+
+    for proc in program.procedures {
+        for (i, arg) in proc.arguments.iter().enumerate() {
+            eprint!("x{}", arg.id);
+            if i != proc.arguments.len() - 1 {
+                eprint!(" ");
+            }
+        }
+        eprint!(":");
+        for a in proc.body {
+            eprint!(" ");
+            match a {
+                Atom::Number { value, .. } => eprint!("{value}"),
+                Atom::String { value, .. } => eprint!("{value}"),
+                Atom::Reference { id, .. } => eprint!("x{id}"),
+            }
+        }
+        eprintln!();
+    }
 
     Ok(())
 }
 
 fn pretty_print(node: &Node, indent_level: usize) {
     let indent = "  ".repeat(indent_level);
-    println!(
+    eprint!(
         "{:>4}..{:<4}{indent}{:?}",
         usize::from(node.text_range().start()),
         usize::from(node.text_range().end()),
         node.kind()
     );
+    if node.kind() == Kind::Proc {
+        eprint!(" {:?}", node.call());
+    }
+    eprintln!();
 
     // Recursively print syntax child nodes
     for child in node.children_with_tokens() {
