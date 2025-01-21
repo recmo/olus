@@ -2,7 +2,7 @@ use {
     olus::{
         Files,
         front::{compile, parse, pretty_print_cst},
-        interpreter::{Context, Value, evaluate},
+        interpreter::{Value, evaluate},
         ir::{Program, pretty_print_ir},
     },
     std::path::PathBuf,
@@ -18,17 +18,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     pretty_print_cst(&root, 1);
 
-    let program = compile(source.to_string(), &root, builtin_resolve);
+    let mut program = compile(source.to_string(), &root, builtin_resolve);
+    program.closure_analysis();
 
     pretty_print_ir(&program);
 
     // Find a Prcocedure called main.
-    let Some(main) = program.procedures.iter().find(|p| {
-        p.arguments
-            .first()
-            .and_then(|arg| program.resolve_name(arg.id))
-            == Some("main")
-    }) else {
+    let Some(main) = program.procedure_by_name("main") else {
         panic!("No procedure `main` found.");
     };
     let [main, _exit] = main.arguments.as_slice() else {
@@ -37,7 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Construct an initial call for the virtual machine.
     evaluate(&program, builtin_eval, &[
-        Value::Closure(main.id, Context::new()),
+        Value::Closure(main.id, vec![]),
         Value::Builtin("exit"),
     ]);
 

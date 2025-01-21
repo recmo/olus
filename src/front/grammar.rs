@@ -63,5 +63,5 @@ pub(super) fn parser<'source, 'cache: 'source>() -> impl CstParser<'source, 'cac
         .repeated()
     });
 
-    block
+    block.padded_by(token(Newline).or_not())
 }

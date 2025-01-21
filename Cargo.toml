@@ -35,6 +35,7 @@ logos = "0.15.0"
 yansi = "1.0.1"
 cstree = "0.12.2"
 num_enum = "0.7.3"
+petgraph = "0.7.1"
 
 [dev-dependencies]
 indoc = "2.0.5"

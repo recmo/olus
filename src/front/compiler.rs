@@ -80,6 +80,7 @@ impl<B, F: FnMut(&str) -> Option<B>> Compiler<B, F> {
                     source,
                     arguments,
                     body,
+                    closure: vec![],
                 });
             }
             Kind::Call => {
@@ -134,6 +135,7 @@ impl<B, F: FnMut(&str) -> Option<B>> Compiler<B, F> {
                         source,
                         arguments,
                         body,
+                        closure: vec![],
                     });
                     reference
                 }
@@ -194,7 +196,7 @@ impl<B, F: FnMut(&str) -> Option<B>> Compiler<B, F> {
                 source: atom.span(),
                 value:  {
                     let text = atom.text();
-                    text[1..text.len() - 1].to_string()
+                    text[3..text.len() - 3].to_string()
                 },
             },
             Kind::Number => Atom::Number {
