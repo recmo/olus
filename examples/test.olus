@@ -1,3 +1,74 @@
+title “Example Program”
+description “
+    This demonstrates and exercises all the basic parts of the Oluś compiler.
+
+    Note that strings can be multi-line (as this one) and contain nested “ and  ” pairs. This has the benefit that any Oluś code snipper may appear in a string (as long as the snippet isn't cut inside a string). For example,
+
+    title “Example Program”
+
+    can appear without any issues. By the way, this is a regular Oluś 'call' statement, where the
+    (non-existant) procedure `title` is called with the string “Example Program” as argument. Since
+    this statement is not part of a procedure, it is ignored. This allows loose call statments to be
+    used as comments. (In fact, an independent string would also be allowed.)
+”
+
+section “Constructing Universe from Scratch”
+
+doc “
+    We start by constructing the Natural Numbers in Scott encoding. In this encoding, an algebraic
+    data with N constructors is represented by a set of N constructors, each of which returns a closure that takes N closures as arguments. It will then call the closure corresponding to the constructor with the same index as the constructor that was called.
+
+    For example a data type `A(a1 a2 a3) | B(b1 b2)` is implemented as
+
+    construct_A a1 a2 a3 ret: ret val_A
+        val_A case_A case_B: case_A a1 a2 a3
+
+    construct_B b1 b 2 ret: ret val_B
+        val_B case_A case_B: case_B b1 b2
+
+    Given a value `x` of type `A`, this value effectively becomes its own match statement:
+
+    dump x ret:
+        x case_A case_B
+        case_A a1 a2 a3:
+            print “Case A!” (:)
+            ret
+        case_B b1 b2:
+            print “Case B!” (:)
+            ret
+”
+
+zero ret: ret (z s: z)
+succ n ret: ret (z s: s n)
+
+section “Basic Functions”
+
+nadd n m ret:
+    m (:ret n) (k: nadd (succ n) k ret)
+
+
+
+
+section “Conversion to native integers”
+
+nat_to_int n ret:
+    n (: ret 0) (m: nat_to_int m (k: ret (add 1 k)))
+
+int_to_nat n ret:
+    zero (n0:)
+    if (is_zero n) (: ret n0) (: ret (succ (int_to_nat (sub n 1)) ))
+
+section “Higher level functions.”
+
+nfib n return:
+    zero (n0:)
+    succ n0 (n1:)
+    n (:return n0) (m:)
+    m (:return n1) (k:)
+    return (nadd (nfib m) (nfib k))
+
+note “This is an example of mutual recursion”
+
 is_even n then else:
     if (is_zero n) then (: is_odd (sub n 1) then else)
 
@@ -14,6 +85,13 @@ fib n return:
     if (is_zero m) (:return 1) (:sub m 1 (k:))
     return (add (fib m) (fib k))
 
+section “Main entry point.”
+
 main exit:
-    print (fact 10) (:)
+    zero (n0:)
+    succ n0 (n1:)
+    succ n1 (n2:)
+    print (nat_to_int (nadd n2 n2)) (:)
+    print (fib 15) (:)
+    print (nat_to_int (nfib (int_to_nat 15))) (:)
     exit

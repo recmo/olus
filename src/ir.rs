@@ -6,6 +6,7 @@ use {
         algo::{condensation, toposort},
         graph::{DiGraph, NodeIndex},
     },
+    std::mem::swap,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -121,6 +122,31 @@ impl<B> Program<B> {
         graph
     }
 
+    /// Check if closures are valid.
+    pub fn closure_check(&self) {
+        for proc in &self.procedures {
+            let contains = |id: u32| {
+                proc.arguments.iter().any(|arg| arg.id == id) || proc.closure.contains(&id)
+            };
+            for atom in &proc.body {
+                let Atom::Reference { id, .. } = atom else {
+                    continue;
+                };
+                if let Some(closure) = self.procedures.iter().find(|p| p.id() == *id) {
+                    for id in &closure.closure {
+                        if !contains(*id) {
+                            panic!("Procedure does not close over {id}.");
+                        }
+                    }
+                } else {
+                    if !contains(*id) {
+                        panic!("Procedure references unknown procedure {id}.");
+                    }
+                }
+            }
+        }
+    }
+
     /// Perform closure analysis on the program.
     pub fn closure_analysis(&mut self) {
         // Solve recursion.
@@ -133,41 +159,119 @@ impl<B> Program<B> {
         for node in order.iter().rev() {
             let component = condensed.node_weight(*node).unwrap();
 
-            // Collect all outgoing references
-            let mut union = vec![];
-            for proc_index in component {
-                let proc = &self.procedures[*proc_index];
-                for atom in &proc.body {
-                    let Atom::Reference { id, .. } = atom else {
-                        continue;
+            // Iterate on the component until convergence.
+            let mut converged = false;
+            while !converged {
+                converged = true;
+                for proc_index in component {
+                    let proc = &self.procedures[*proc_index];
+                    let contains = |id: u32| {
+                        proc.arguments.iter().any(|arg| arg.id == id) || proc.closure.contains(&id)
                     };
-                    if union.contains(id) {
-                        continue;
-                    }
-                    if proc.arguments.iter().any(|arg| arg.id == *id) {
-                        continue;
-                    }
-                    if let Some(proc) = self.procedures.iter().find(|p| p.id() == *id) {
-                        for item in &proc.closure {
-                            if !union.contains(item) {
-                                union.push(*item);
-                            }
+                    let mut to_add = vec![];
+                    for atom in &proc.body {
+                        let Atom::Reference { id, .. } = atom else {
+                            continue;
+                        };
+                        if contains(*id) {
+                            continue;
                         }
-                    } else {
-                        union.push(*id);
+                        if let Some(c) = self.procedures.iter().find(|p| p.id() == *id) {
+                            for item in &c.closure {
+                                if !contains(*item) {
+                                    to_add.push(*item);
+                                }
+                            }
+                        } else {
+                            to_add.push(*id);
+                        }
+                    }
+                    if !to_add.is_empty() {
+                        converged = false;
+                        self.procedures[*proc_index].closure.extend(&to_add);
                     }
                 }
             }
+        }
+    }
 
-            // Store the closures, ignoring any brought in by their arguments.
-            for proc_index in component {
-                let proc = &mut self.procedures[*proc_index];
-                proc.closure = union
-                    .iter()
-                    .copied()
-                    .filter(|&id| proc.arguments.iter().all(|arg| arg.id != id))
-                    .collect();
+    /// Remove unreachable procedures.
+    pub fn tree_shake(&mut self, root: u32) {
+        let mut live = vec![false; self.procedures.len()];
+        let root_ix = self
+            .procedures
+            .iter()
+            .position(|p| p.id() == root)
+            .expect("Root not found.");
+        let mut stack = vec![root_ix];
+        while let Some(ix) = stack.pop() {
+            if live[ix] {
+                continue;
             }
+            live[ix] = true;
+            for atom in &self.procedures[ix].body {
+                let Atom::Reference { id, .. } = atom else {
+                    continue;
+                };
+                if let Some(j) = self.procedures.iter().position(|p| p.id() == *id) {
+                    stack.push(j);
+                }
+            }
+        }
+        let mut procedures = vec![];
+        swap(&mut procedures, &mut self.procedures);
+        self.procedures = procedures
+            .into_iter()
+            .enumerate()
+            .filter(|(i, _)| live[*i])
+            .map(|(_, p)| p)
+            .collect();
+    }
+
+    /// Collapse duplicate procedures.
+    pub fn deduplicate(&mut self) {
+        todo!()
+    }
+}
+
+impl<B: Clone> Program<B> {
+    /// Inlining of procedures.
+    /// Any procedure that calls a known procedure can be inlined.
+    pub fn inline(&mut self) {
+        for i in 0..self.procedures.len() {
+            let mut body = vec![];
+            swap(&mut self.procedures[i].body, &mut body);
+            // Repeatedly inline the call in the body.
+            // TODO: Abort on cycles.
+            loop {
+                let Some(Atom::Reference { id, .. }) = body.first() else {
+                    break;
+                };
+                let Some(call) = self.procedures.iter().find(|p| p.id() == *id) else {
+                    break;
+                };
+                // Inline the known call.
+                let mut new_body = call
+                    .body
+                    .iter()
+                    .map(|atom| {
+                        let Atom::Reference { id, .. } = atom else {
+                            return atom.clone();
+                        };
+                        // Map the arguments to the call.
+                        if let Some(j) = call.arguments.iter().position(|arg| arg.id == *id) {
+                            return body[j].clone();
+                        }
+                        // TODO: If atom creates a closure, we need to argument-map the closure.
+                        if let Some(j) = self.procedure_by_id(*id) {
+                            todo!()
+                        }
+                        atom.clone()
+                    })
+                    .collect::<Vec<_>>();
+                swap(&mut body, &mut new_body);
+            }
+            swap(&mut self.procedures[i].body, &mut body);
         }
     }
 }
