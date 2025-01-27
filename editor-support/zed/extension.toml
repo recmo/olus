@@ -7,7 +7,6 @@ description = "Zed Extension for the Oluś Language."
 repository = "https://github.com/recmo/olus"
 
 [grammars.olus]
-# repository = "https://github.com/recmo/olus"
-repository = "~/github/recmo/olus"
+repository = "https://github.com/recmo/olus"
 rev = "main"
-paht = "editor-support/tree-sitter"
+paht = "editor-support/tree-sitter-olus"

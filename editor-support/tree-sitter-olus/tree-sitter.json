@@ -1,0 +1,36 @@
+{
+  "grammars": [
+    {
+      "name": "olus",
+      "camelcase": "Olus",
+      "scope": "source.olus",
+      "file-types": [
+        ".olus"
+      ],
+      "injection-regex": "^olus$"
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "MIT",
+    "description": "The Oluś Language.",
+    "authors": [
+      {
+        "name": "Remco Bloemen",
+        "email": "remco@wicked.ventures",
+        "url": "https://xn--2-umb.com/"
+      }
+    ],
+    "links": {
+      "repository": "https://github.com/recmo/olus"
+    }
+  },
+  "bindings": {
+    "c": true,
+    "go": true,
+    "node": true,
+    "python": true,
+    "rust": true,
+    "swift": true
+  }
+}
