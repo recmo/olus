@@ -38,8 +38,30 @@ doc “
             ret
 ”
 
+section “Booleans”
+
+doc “Constructors”
+true ret: ret (t f: t)
+false ret: ret (t f: f)
+
+doc “Constants”
+True t f: t
+False t f: f
+
+section “Natural Numbers”
+
+doc “Constructors”
 zero ret: ret (z s: z)
 succ n ret: ret (z s: s n)
+
+doc “Constants”
+N0 z s: z
+N1 z s: s N0
+N2 z s: s N1
+N3 z s: s N2
+N4 z s: s N3
+
+
 
 section “Basic Functions”
 
@@ -88,10 +110,7 @@ fib n return:
 section “Main entry point.”
 
 main exit:
-    zero (n0:)
-    succ n0 (n1:)
-    succ n1 (n2:)
-    print (nat_to_int (nadd n2 n2)) (:)
+    print (nat_to_int (nadd N2 N2)) (:)
     print (fib 15) (:)
     print (nat_to_int (nfib (int_to_nat 15))) (:)
     exit

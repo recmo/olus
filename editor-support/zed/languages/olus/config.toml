@@ -1,0 +1,4 @@
+name = "Oluś"
+grammar = "olus"
+path_suffixes = ["olus"]
+line_comments = []

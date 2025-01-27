@@ -1,0 +1,13 @@
+id = "olus-lang"
+name = "The Oluś Language"
+version = "0.0.1"
+schema_version = 1
+authors = ["Remco Bloemen <Remco@wicked.ventures>"]
+description = "Zed Extension for the Oluś Language."
+repository = "https://github.com/recmo/olus"
+
+[grammars.olus]
+# repository = "https://github.com/recmo/olus"
+repository = "~/github/recmo/olus"
+rev = "main"
+paht = "editor-support/tree-sitter"
