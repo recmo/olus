@@ -6,8 +6,68 @@
       "type": "REPEAT",
       "content": {
         "type": "SYMBOL",
-        "name": "_expression"
+        "name": "statement"
       }
+    },
+    "statement": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "REPEAT1",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_expression"
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "colon"
+                },
+                {
+                  "type": "REPEAT",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "_expression"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "SYMBOL",
+          "name": "newline"
+        }
+      ]
+    },
+    "block": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "indent"
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SYMBOL",
+            "name": "statement"
+          }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "dedent"
+        }
+      ]
     },
     "_expression": {
       "type": "CHOICE",
@@ -15,10 +75,6 @@
         {
           "type": "SYMBOL",
           "name": "identifier"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "colon"
         },
         {
           "type": "SYMBOL",
@@ -34,21 +90,12 @@
         }
       ]
     },
-    "identifier": {
-      "type": "PATTERN",
-      "value": "\\p{XID_Start}\\p{XID_Continue}*",
-      "flags": "u"
-    },
-    "colon": {
-      "type": "STRING",
-      "value": ":"
-    },
     "group": {
       "type": "SEQ",
       "members": [
         {
-          "type": "STRING",
-          "value": "("
+          "type": "SYMBOL",
+          "name": "paren_open"
         },
         {
           "type": "REPEAT",
@@ -58,8 +105,32 @@
           }
         },
         {
-          "type": "STRING",
-          "value": ")"
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "colon"
+                },
+                {
+                  "type": "REPEAT",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "_expression"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "SYMBOL",
+          "name": "paren_close"
         }
       ]
     },
@@ -67,8 +138,8 @@
       "type": "SEQ",
       "members": [
         {
-          "type": "STRING",
-          "value": "“"
+          "type": "SYMBOL",
+          "name": "string_open"
         },
         {
           "type": "REPEAT",
@@ -76,8 +147,8 @@
             "type": "CHOICE",
             "members": [
               {
-                "type": "PATTERN",
-                "value": "[^“”]"
+                "type": "SYMBOL",
+                "name": "string_content"
               },
               {
                 "type": "SYMBOL",
@@ -87,14 +158,43 @@
           }
         },
         {
-          "type": "STRING",
-          "value": "”"
+          "type": "SYMBOL",
+          "name": "string_close"
         }
       ]
+    },
+    "colon": {
+      "type": "STRING",
+      "value": ":"
+    },
+    "paren_open": {
+      "type": "STRING",
+      "value": "("
+    },
+    "paren_close": {
+      "type": "STRING",
+      "value": ")"
+    },
+    "string_open": {
+      "type": "STRING",
+      "value": "“"
+    },
+    "string_close": {
+      "type": "STRING",
+      "value": "”"
+    },
+    "string_content": {
+      "type": "PATTERN",
+      "value": "[^“”]+"
     },
     "number": {
       "type": "PATTERN",
       "value": "\\d+"
+    },
+    "identifier": {
+      "type": "PATTERN",
+      "value": "\\p{XID_Start}\\p{XID_Continue}*",
+      "flags": "u"
     }
   },
   "extras": [
@@ -106,7 +206,24 @@
   ],
   "conflicts": [],
   "precedences": [],
-  "externals": [],
+  "externals": [
+    {
+      "type": "SYMBOL",
+      "name": "indent"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "dedent"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "newline"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "error_sentinel"
+    }
+  ],
   "inline": [],
   "supertypes": []
 }

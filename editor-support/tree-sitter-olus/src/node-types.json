@@ -5,7 +5,7 @@
     "fields": {},
     "children": {
       "multiple": true,
-      "required": false,
+      "required": true,
       "types": [
         {
           "type": "colon",
@@ -21,6 +21,14 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_close",
+          "named": true
+        },
+        {
+          "type": "paren_open",
           "named": true
         },
         {
@@ -40,6 +48,21 @@
       "required": false,
       "types": [
         {
+          "type": "statement",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "statement",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
           "type": "colon",
           "named": true
         },
@@ -49,6 +72,10 @@
         },
         {
           "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "newline",
           "named": true
         },
         {
@@ -68,22 +95,26 @@
     "fields": {},
     "children": {
       "multiple": true,
-      "required": false,
+      "required": true,
       "types": [
         {
           "type": "string",
           "named": true
+        },
+        {
+          "type": "string_close",
+          "named": true
+        },
+        {
+          "type": "string_content",
+          "named": true
+        },
+        {
+          "type": "string_open",
+          "named": true
         }
       ]
     }
-  },
-  {
-    "type": "(",
-    "named": false
-  },
-  {
-    "type": ")",
-    "named": false
   },
   {
     "type": "colon",
@@ -94,15 +125,31 @@
     "named": true
   },
   {
+    "type": "newline",
+    "named": true
+  },
+  {
     "type": "number",
     "named": true
   },
   {
-    "type": "“",
-    "named": false
+    "type": "paren_close",
+    "named": true
   },
   {
-    "type": "”",
-    "named": false
+    "type": "paren_open",
+    "named": true
+  },
+  {
+    "type": "string_close",
+    "named": true
+  },
+  {
+    "type": "string_content",
+    "named": true
+  },
+  {
+    "type": "string_open",
+    "named": true
   }
 ]

@@ -8,5 +8,5 @@ repository = "https://github.com/recmo/olus"
 
 [grammars.olus]
 repository = "https://github.com/recmo/olus"
-rev = "main"
-paht = "editor-support/tree-sitter-olus"
+commit = "f43352bb61a2d0b5f6bcc1a5257b2578b217c29f"
+path = "editor-support/tree-sitter-olus"
