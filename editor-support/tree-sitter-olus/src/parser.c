@@ -26,7 +26,7 @@ enum ts_symbol_identifiers {
   sym_identifier = 8,
   sym_newline = 9,
   sym_source_file = 10,
-  sym__statement = 11,
+  sym_statement = 11,
   sym_procedure = 12,
   sym_call = 13,
   sym__expression = 14,
@@ -50,7 +50,7 @@ static const char * const ts_symbol_names[] = {
   [sym_identifier] = "identifier",
   [sym_newline] = "newline",
   [sym_source_file] = "source_file",
-  [sym__statement] = "_statement",
+  [sym_statement] = "statement",
   [sym_procedure] = "procedure",
   [sym_call] = "call",
   [sym__expression] = "_expression",
@@ -74,7 +74,7 @@ static const TSSymbol ts_symbol_map[] = {
   [sym_identifier] = sym_identifier,
   [sym_newline] = sym_newline,
   [sym_source_file] = sym_source_file,
-  [sym__statement] = sym__statement,
+  [sym_statement] = sym_statement,
   [sym_procedure] = sym_procedure,
   [sym_call] = sym_call,
   [sym__expression] = sym__expression,
@@ -131,8 +131,8 @@ static const TSSymbolMetadata ts_symbol_metadata[] = {
     .visible = true,
     .named = true,
   },
-  [sym__statement] = {
-    .visible = false,
+  [sym_statement] = {
+    .visible = true,
     .named = true,
   },
   [sym_procedure] = {
@@ -578,7 +578,7 @@ static const uint16_t ts_parse_table[LARGE_STATE_COUNT][SYMBOL_COUNT] = {
   },
   [1] = {
     [sym_source_file] = STATE(38),
-    [sym__statement] = STATE(3),
+    [sym_statement] = STATE(3),
     [sym_procedure] = STATE(40),
     [sym_call] = STATE(40),
     [sym__expression] = STATE(11),
@@ -595,7 +595,7 @@ static const uint16_t ts_parse_table[LARGE_STATE_COUNT][SYMBOL_COUNT] = {
     [sym_identifier] = ACTIONS(13),
   },
   [2] = {
-    [sym__statement] = STATE(2),
+    [sym_statement] = STATE(2),
     [sym_procedure] = STATE(40),
     [sym_call] = STATE(40),
     [sym__expression] = STATE(11),
@@ -612,7 +612,7 @@ static const uint16_t ts_parse_table[LARGE_STATE_COUNT][SYMBOL_COUNT] = {
     [sym_identifier] = ACTIONS(29),
   },
   [3] = {
-    [sym__statement] = STATE(2),
+    [sym_statement] = STATE(2),
     [sym_procedure] = STATE(40),
     [sym_call] = STATE(40),
     [sym__expression] = STATE(11),
@@ -1070,7 +1070,7 @@ static const TSParseActionEntry ts_parse_actions[] = {
   [82] = {.entry = {.count = 1, .reusable = false}}, REDUCE(sym__expression, 1, 0, 0),
   [84] = {.entry = {.count = 2, .reusable = false}}, REDUCE(sym__expression, 1, 0, 0), REDUCE(aux_sym_procedure_repeat1, 1, 0, 0),
   [87] = {.entry = {.count = 1, .reusable = true}}, REDUCE(sym__expression, 1, 0, 0),
-  [89] = {.entry = {.count = 1, .reusable = true}}, REDUCE(sym__statement, 2, 0, 0),
+  [89] = {.entry = {.count = 1, .reusable = true}}, REDUCE(sym_statement, 2, 0, 0),
   [91] = {.entry = {.count = 1, .reusable = true}}, REDUCE(aux_sym_procedure_repeat1, 1, 0, 0),
   [93] = {.entry = {.count = 2, .reusable = true}}, REDUCE(sym__expression, 1, 0, 0), REDUCE(aux_sym_procedure_repeat1, 1, 0, 0),
   [96] = {.entry = {.count = 1, .reusable = false}}, REDUCE(sym_group, 3, 0, 0),

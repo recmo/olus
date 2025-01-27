@@ -19,9 +19,9 @@ module.exports = grammar({
   conflicts: ($) => [[$.procedure, $._expression]],
 
   rules: {
-    source_file: ($) => repeat($._statement),
+    source_file: ($) => repeat($.statement),
 
-    _statement: ($) => seq(choice($.procedure, $.call), $.newline),
+    statement: ($) => seq(choice($.procedure, $.call), $.newline),
     procedure: ($) => seq(repeat($.identifier), $.colon, optional($.call)),
     call: ($) => repeat1($._expression),
 
