@@ -1,5 +1,5 @@
 id = "olus-lang"
-name = "The Oluś Language"
+name = "Oluś"
 version = "0.0.1"
 schema_version = 1
 authors = ["Remco Bloemen <Remco@wicked.ventures>"]
@@ -8,5 +8,5 @@ repository = "https://github.com/recmo/olus"
 
 [grammars.olus]
 repository = "https://github.com/recmo/olus"
-commit = "f43352bb61a2d0b5f6bcc1a5257b2578b217c29f"
+commit = "d8a1ab16bf61d9c1ba41c868f4dfb43f8385a469"
 path = "editor-support/tree-sitter-olus"
