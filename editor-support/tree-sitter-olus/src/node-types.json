@@ -1,16 +1,12 @@
 [
   {
-    "type": "group",
+    "type": "call",
     "named": true,
     "fields": {},
     "children": {
       "multiple": true,
       "required": true,
       "types": [
-        {
-          "type": "colon",
-          "named": true
-        },
         {
           "type": "group",
           "named": true
@@ -24,6 +20,25 @@
           "named": true
         },
         {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "group",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "call",
+          "named": true
+        },
+        {
           "type": "paren_close",
           "named": true
         },
@@ -32,7 +47,30 @@
           "named": true
         },
         {
-          "type": "string",
+          "type": "procedure",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "procedure",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "colon",
+          "named": true
+        },
+        {
+          "type": "identifier",
           "named": true
         }
       ]
@@ -48,30 +86,7 @@
       "required": false,
       "types": [
         {
-          "type": "statement",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "statement",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "colon",
-          "named": true
-        },
-        {
-          "type": "group",
-          "named": true
-        },
-        {
-          "type": "identifier",
+          "type": "call",
           "named": true
         },
         {
@@ -79,11 +94,7 @@
           "named": true
         },
         {
-          "type": "number",
-          "named": true
-        },
-        {
-          "type": "string",
+          "type": "procedure",
           "named": true
         }
       ]
@@ -103,10 +114,6 @@
         },
         {
           "type": "string_close",
-          "named": true
-        },
-        {
-          "type": "string_content",
           "named": true
         },
         {
@@ -142,10 +149,6 @@
   },
   {
     "type": "string_close",
-    "named": true
-  },
-  {
-    "type": "string_content",
     "named": true
   },
   {

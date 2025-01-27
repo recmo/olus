@@ -6,40 +6,22 @@
       "type": "REPEAT",
       "content": {
         "type": "SYMBOL",
-        "name": "statement"
+        "name": "_statement"
       }
     },
-    "statement": {
+    "_statement": {
       "type": "SEQ",
       "members": [
-        {
-          "type": "REPEAT1",
-          "content": {
-            "type": "SYMBOL",
-            "name": "_expression"
-          }
-        },
         {
           "type": "CHOICE",
           "members": [
             {
-              "type": "SEQ",
-              "members": [
-                {
-                  "type": "SYMBOL",
-                  "name": "colon"
-                },
-                {
-                  "type": "REPEAT",
-                  "content": {
-                    "type": "SYMBOL",
-                    "name": "_expression"
-                  }
-                }
-              ]
+              "type": "SYMBOL",
+              "name": "procedure"
             },
             {
-              "type": "BLANK"
+              "type": "SYMBOL",
+              "name": "call"
             }
           ]
         },
@@ -49,25 +31,40 @@
         }
       ]
     },
-    "block": {
+    "procedure": {
       "type": "SEQ",
       "members": [
-        {
-          "type": "SYMBOL",
-          "name": "indent"
-        },
         {
           "type": "REPEAT",
           "content": {
             "type": "SYMBOL",
-            "name": "statement"
+            "name": "identifier"
           }
         },
         {
           "type": "SYMBOL",
-          "name": "dedent"
+          "name": "colon"
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "call"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         }
       ]
+    },
+    "call": {
+      "type": "REPEAT1",
+      "content": {
+        "type": "SYMBOL",
+        "name": "_expression"
+      }
     },
     "_expression": {
       "type": "CHOICE",
@@ -98,33 +95,15 @@
           "name": "paren_open"
         },
         {
-          "type": "REPEAT",
-          "content": {
-            "type": "SYMBOL",
-            "name": "_expression"
-          }
-        },
-        {
           "type": "CHOICE",
           "members": [
             {
-              "type": "SEQ",
-              "members": [
-                {
-                  "type": "SYMBOL",
-                  "name": "colon"
-                },
-                {
-                  "type": "REPEAT",
-                  "content": {
-                    "type": "SYMBOL",
-                    "name": "_expression"
-                  }
-                }
-              ]
+              "type": "SYMBOL",
+              "name": "procedure"
             },
             {
-              "type": "BLANK"
+              "type": "SYMBOL",
+              "name": "call"
             }
           ]
         },
@@ -148,7 +127,7 @@
             "members": [
               {
                 "type": "SYMBOL",
-                "name": "string_content"
+                "name": "_string_content"
               },
               {
                 "type": "SYMBOL",
@@ -183,7 +162,7 @@
       "type": "STRING",
       "value": "”"
     },
-    "string_content": {
+    "_string_content": {
       "type": "PATTERN",
       "value": "[^“”]+"
     },
@@ -195,35 +174,28 @@
       "type": "PATTERN",
       "value": "\\p{XID_Start}\\p{XID_Continue}*",
       "flags": "u"
+    },
+    "newline": {
+      "type": "PATTERN",
+      "value": "[\\u000a\\u000b\\u000c\\u000d\\u0085\\u2028\\u2029]+",
+      "flags": "u"
     }
   },
   "extras": [
     {
       "type": "PATTERN",
-      "value": "\\p{White_Space}",
+      "value": "[\\p{Pattern_White_Space}]+",
       "flags": "u"
     }
   ],
-  "conflicts": [],
-  "precedences": [],
-  "externals": [
-    {
-      "type": "SYMBOL",
-      "name": "indent"
-    },
-    {
-      "type": "SYMBOL",
-      "name": "dedent"
-    },
-    {
-      "type": "SYMBOL",
-      "name": "newline"
-    },
-    {
-      "type": "SYMBOL",
-      "name": "error_sentinel"
-    }
+  "conflicts": [
+    [
+      "procedure",
+      "_expression"
+    ]
   ],
+  "precedences": [],
+  "externals": [],
   "inline": [],
   "supertypes": []
 }

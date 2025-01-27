@@ -1,3 +1,4 @@
+// https://gitlab.com/viktomas/tree-sitter-logseq/-/blob/5ab1cac03f2ab572f586f5d59ae7818aa78219c1/src/scanner.c
 #include "tree_sitter/parser.h"
 #include "tree_sitter/alloc.h"
 #include "tree_sitter/array.h"
